@@ -42,7 +42,7 @@ boost::python::list toPythonList(std::vector<T> vector) {
   return list;
 }
 
-double _evaluate(const double *x, const int N, bool render, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
+double _evaluate(const char* model_file, const double *x, const int N, bool render, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
 {
 
   vector<double> mu = vector<double>(x, x+4);
@@ -53,13 +53,13 @@ double _evaluate(const double *x, const int N, bool render, double* time_simulat
 
   CpgFeedbackControl control(mu, o, omega, d, coupling, x[16]);
 
-  OpenLoopExperiment ole(&control, "/Users/Siebe/Dropbox/Thesis/Scratches/model_large.xml", 5, render);
+  OpenLoopExperiment ole(&control, model_file, 5, render);
   double result = ole.start(time_simulated, distance, energy_consumed, action_history, sensor_history);
 
   return result;
 };
 
-boost::python::tuple evaluate(boost::python::list& ls, bool render, bool logging) {
+boost::python::tuple evaluate(const char* model_file, boost::python::list& ls, bool render, bool logging) {
     ScopedGILRelease scoped;
 
     double time_simulated = 0;
@@ -88,9 +88,9 @@ boost::python::tuple evaluate(boost::python::list& ls, bool render, bool logging
 
     if (logging)
     {
-      result = _evaluate(variables, num_variables, render, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
+      result = _evaluate(model_file, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
     } else {
-      result = _evaluate(variables, num_variables, render, &time_simulated, &distance, &energy_consumed, 0, 0);
+      result = _evaluate(model_file, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, 0, 0);
     }
     
 
