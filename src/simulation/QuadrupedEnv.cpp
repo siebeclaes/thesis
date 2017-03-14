@@ -14,21 +14,25 @@ bool activated = false;
 
 void mouse_button_g(GLFWwindow* window, int button, int act, int mods)
 {
-	env->mouse_button(window, button, act, mods);
+    if (env != NULL)
+	   env->mouse_button(window, button, act, mods);
 }
 
 void mouse_move_g(GLFWwindow* window, double xpos, double ypos)
 {
-	env->mouse_move(window, xpos, ypos);
+    if (env != NULL)
+	   env->mouse_move(window, xpos, ypos);
 }
 void scroll_g(GLFWwindow* window, double xoffset, double yoffset)
 {
-	env->scroll(window, xoffset, yoffset);
+    if (env != NULL)
+	   env->scroll(window, xoffset, yoffset);
 }
 
 void keyboard_g(GLFWwindow* window, int key, int scancode, int act, int mods)
 {
-    env->keyboard(window, key, scancode, act, mods);
+    if (env != NULL)
+        env->keyboard(window, key, scancode, act, mods);
 }
 
 QuadrupedEnv::QuadrupedEnv(const char* filename, const int skip_frames, bool render)
@@ -112,7 +116,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
 	if (!activated)
 	{
 		activated = true;
-		mj_activate("mjkey.txt");
+		mj_activate("/Users/Siebe/.mujoco/mjkey.txt");
 	}
 
     // load and compile
@@ -129,12 +133,25 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
 
     mj_forward(m, d);
 
-    // printf("Model mass: %f\n", mj_getTotalmass(m));
+    // printf("Model mass: %f\n", mj_getTotalmass(m))
+    torso_xpos_id = mj_name2id(m, mjOBJ_GEOM, "torso_geom");
+    // printf("Torso_geom_id: %d\n", torso_xpos_id);
 
-    int act_1_id = mj_name2id(m, mjOBJ_ACTUATOR, "act_1");
-    int act_2_id = mj_name2id(m, mjOBJ_ACTUATOR, "act_2");
-    int act_3_id = mj_name2id(m, mjOBJ_ACTUATOR, "act_3");
-    int act_4_id = mj_name2id(m, mjOBJ_ACTUATOR, "act_4");
+    actuator_indices[0] = mj_name2id(m, mjOBJ_ACTUATOR, "act_1");
+    actuator_indices[1] = mj_name2id(m, mjOBJ_ACTUATOR, "act_2");
+    actuator_indices[2] = mj_name2id(m, mjOBJ_ACTUATOR, "act_3");
+    actuator_indices[3] = mj_name2id(m, mjOBJ_ACTUATOR, "act_4");
+
+    shoulder_indices[0] = mj_name2id(m, mjOBJ_JOINT, "shoulder_1");
+    shoulder_indices[1] = mj_name2id(m, mjOBJ_JOINT, "shoulder_2");
+    shoulder_indices[2] = mj_name2id(m, mjOBJ_JOINT, "shoulder_3");
+    shoulder_indices[3] = mj_name2id(m, mjOBJ_JOINT, "shoulder_4");
+
+    for (int i = 0; i < 4; i++)
+        shoulder_qpos_indices[i] = m->jnt_qposadr[shoulder_indices[i]];
+
+    for (int i = 0; i < 4; i++)
+        prev_shoulder_qpos[i] = d->qpos[shoulder_qpos_indices[i]];
 
     if (render_env)
     {
@@ -150,11 +167,16 @@ void QuadrupedEnv::closeMuJoCo()
 {
 	mj_deleteData(d);
     mj_deleteModel(m);
+    d = NULL;
+    m = NULL;
     if (render_env) 
     {
     	mjr_freeContext(&con);
         mjv_freeScene(&scn);
         glfwTerminate();
+        mj_deactivate();
+        activated = false;
+        env = NULL;
     }
     // mj_deactivate();
 }
@@ -175,7 +197,12 @@ bool QuadrupedEnv::step(double* action)
     // Update consumed energy
     for (int i = 0; i < 4; i++)
     {
-        energy += mju_abs(d->actuator_force[i]);
+        double current_shoulder_qpos = d->qpos[shoulder_qpos_indices[i]];
+        double theta = mju_abs(current_shoulder_qpos - prev_shoulder_qpos[i]);
+        prev_shoulder_qpos[i] = current_shoulder_qpos;
+
+        // Scale torques by scaling_factor ^ 2
+        energy += mju_abs(d->actuator_force[i] / 100 * theta);
     }
 
     // Check for warnings (they indicate numerical instabilities)
@@ -218,22 +245,23 @@ bool QuadrupedEnv::step(double* action)
 		// printf("Tilted too far, time: %f\n", d->time);
 	}
 
+    // printf("torso height: %f\n", d->geom_xpos[torso_xpos_id+2]);
+    // Check for torso too low
+    if (d->geom_xpos[torso_xpos_id+2] < -0.7)
+    {
+        survived = false;
+    }
+
     // Rendering stuff
 	if (render_env)
 	{
+        if (stop_simulation)
+            return false;
 		render(window);
 		glfwPollEvents();
 	}
 
 	return survived;
-}
-
-double QuadrupedEnv::getReward()
-{
-	double distance = getDistance();
-
-    // return (distance * 1000 / (energy + E0));
-	return distance;
 }
 
 double QuadrupedEnv::getTime()
@@ -247,10 +275,10 @@ double QuadrupedEnv::getDistance()
     double x = d->qpos[freeJointAddress];
     double y = d->qpos[freeJointAddress + 1];
 
-    double dx = initialX - x;
+    // double dx = initialX - x;
     double dy = initialY - y;
 
-    return sqrt(dx*dx + dy*dy);
+    return dy / 10;
 }
 
 double QuadrupedEnv::getEnergyConsumed()
@@ -547,6 +575,9 @@ void QuadrupedEnv::keyboard(GLFWwindow* window, int key, int scancode, int act, 
 
     switch( key )
     {
+    case 256: // ESC key
+        stop_simulation = true;
+        break;
     default:
         // toggle visualization flag
         for( int i=0; i<mjNVISFLAG; i++ )

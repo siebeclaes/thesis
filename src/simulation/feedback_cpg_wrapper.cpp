@@ -9,7 +9,7 @@
 #include <math.h>
 
 
-#include "OpenLoopExperiment.h"
+#include "Experiment.h"
 #include "CpgFeedbackControl.h"
 
 using namespace std::chrono;
@@ -42,24 +42,53 @@ boost::python::list toPythonList(std::vector<T> vector) {
   return list;
 }
 
-double _evaluate(const char* model_file, const double *x, const int N, bool render, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
+CpgFeedbackControl* getOpenControl(const double *x, const int N)
 {
-
   vector<double> mu = vector<double>(x, x+4);
   vector<double> o = {x[4], x[4], x[5], x[5]};
   vector<double> omega = {x[6], x[6], x[7], x[7]};
   vector<double> d = {x[8], x[8], x[9], x[9]};
   vector<vector<double>> coupling = {{0, x[10], x[11], x[13]}, {x[10], 0, x[12], x[14]}, {x[11], x[12], 0, x[15]}, {x[13], x[14], x[15], 0}};
 
-  CpgFeedbackControl control(mu, o, omega, d, coupling, x[16]);
+  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, x[16]);
+  return control;
+}
 
-  OpenLoopExperiment ole(&control, model_file, 5, render);
-  double result = ole.start(time_simulated, distance, energy_consumed, action_history, sensor_history);
+CpgFeedbackControl* getClosedControl(const double *x, const int N)
+{
+  vector<double> mu = vector<double>(x, x+4);
+  vector<double> o = {x[4], x[4], x[5], x[5]};
+  vector<double> omega = {x[6], x[6], x[7], x[7]};
+  vector<double> d = {x[8], x[8], x[9], x[9]};
+  vector<vector<double>> coupling = {{0, x[10], x[11], x[13]}, {x[10], 0, x[12], x[14]}, {x[11], x[12], 0, x[15]}, {x[13], x[14], x[15], 0}};
+  double phase_offset = x[16];
+  vector<double> kappa_r = {x[17], x[18], x[19], x[20]};
+  vector<double> kappa_phi = {x[21], x[22], x[23], x[24]};
+  vector<double> kappa_o = {x[25], x[26], x[27], x[28]};
 
+  const double* weights = x + 29;
+
+  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, phase_offset, kappa_r, kappa_phi, kappa_o, weights);
+  return control;
+}
+
+bool _evaluate(const char* model_file, bool closed_loop, const double *x, const int N, bool render, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
+{
+  CpgFeedbackControl* control;
+
+  if (closed_loop)
+    control = getClosedControl(x, N);
+  else
+    control = getOpenControl(x, N);
+  
+  Experiment exp(control, closed_loop, model_file, 5, render);
+  bool result = exp.start(time_simulated, distance, energy_consumed, action_history, sensor_history);
+
+  delete(control);
   return result;
 };
 
-boost::python::tuple evaluate(const char* model_file, boost::python::list& ls, bool render, bool logging) {
+boost::python::tuple evaluate(const char* model_file, bool closed_loop, boost::python::list& ls, bool render, bool logging) {
     ScopedGILRelease scoped;
 
     double time_simulated = 0;
@@ -79,7 +108,7 @@ boost::python::tuple evaluate(const char* model_file, boost::python::list& ls, b
       }
     }
 
-    double result = 0;
+    bool result = false;
     int num_variables = len(ls);
     double* variables = new double[num_variables];
 
@@ -88,9 +117,9 @@ boost::python::tuple evaluate(const char* model_file, boost::python::list& ls, b
 
     if (logging)
     {
-      result = _evaluate(model_file, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
+      result = _evaluate(model_file, closed_loop, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
     } else {
-      result = _evaluate(model_file, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, 0, 0);
+      result = _evaluate(model_file, closed_loop, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, 0, 0);
     }
     
 
@@ -110,7 +139,14 @@ boost::python::tuple evaluate(const char* model_file, boost::python::list& ls, b
     return boost::python::make_tuple(result, time_simulated, distance, energy_consumed, action_history_list, sensor_history_list);
 }
 
-BOOST_PYTHON_MODULE(feedback_cpg_open)
+int get_cpg_version()
 {
+  return 1;
+}
+
+BOOST_PYTHON_MODULE(feedback_cpg)
+{
+  using namespace boost::python;
+  def("get_cpg_version", get_cpg_version);
   def("evaluate", evaluate);
 }

@@ -21,7 +21,7 @@ private:
 	vector<double> step_cpg(vector<double>& Fr, vector<double>& Fphi, vector<double>& Fo);
 
 	bool closed_loop;
-	double prev_time = 0;
+	double prev_time = -1;
 	double dt = 0.001;
 
 	Network n;

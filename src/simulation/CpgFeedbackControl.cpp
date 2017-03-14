@@ -35,8 +35,8 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
 
     psi = {{0, 0, phase_offset, phase_offset}, {0, 0, phase_offset, phase_offset}, {phase_offset, phase_offset, 0, 0}, {phase_offset, phase_offset, 0, 0}};
 
-    for (int i = 0; i < CPG_INIT; i++)
-        step_open_loop();
+    // for (int i = 0; i < CPG_INIT; i++)
+    //     step_open_loop();
 }
 
 CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<vector<double>> p_coupling, double phase_offset, vector<double> p_kappa_r, vector<double> p_kappa_phi, vector<double> p_kappa_o, const double* p_weights)
@@ -59,8 +59,6 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
     psi = {{0, 0, phase_offset, phase_offset}, {0, 0, phase_offset, phase_offset}, {phase_offset, phase_offset, 0, 0}, {phase_offset, phase_offset, 0, 0}};
 
     n = Network(4, 12);
-    n.add_layer(12);
-    n.add_layer(12);
     n.finalize();
 
     n.set_weights(p_weights);
@@ -139,6 +137,7 @@ vector<double> CpgFeedbackControl::step_cpg(vector<double>& Fr, vector<double>& 
 void CpgFeedbackControl::getAction(double* actions, double* forces, double time)
 {
     int num_steps = (int) (time / dt) - prev_time;
+    // printf("time: %f \t Num steps: %d\n", time, num_steps);
     vector<double> new_actions;
 
     for (int i=0; i<num_steps; i++)

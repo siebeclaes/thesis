@@ -1,23 +1,24 @@
-#include "OpenLoopExperiment.h"
+#include "Experiment.h"
 
 #include "stdlib.h"
 #include <math.h>
 #include <vector>
+
 using namespace std;
 
-OpenLoopExperiment::OpenLoopExperiment(Control *control, const char* modelpath, const int skip_frames, bool render)
+Experiment::Experiment(Control *control, bool closed_loop, const char* modelpath, const int skip_frames, bool render)
 {
 	mControl = control;
-
+    mClosedLoop = closed_loop;
 	mEnv = new QuadrupedEnv(modelpath, skip_frames, render);
 }
 
-OpenLoopExperiment::~OpenLoopExperiment()
+Experiment::~Experiment()
 {
 	delete(mEnv);
 }
 
-double OpenLoopExperiment::start(double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
+bool Experiment::start(double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
 {
 	// main loop
 	double actions[4] = {0};
@@ -28,14 +29,13 @@ double OpenLoopExperiment::start(double* time_simulated, double* distance, doubl
 
     while( mEnv->getTime() < duration)
     {
-       
-        if (mEnv->getTime() < 1)
+        if (mClosedLoop)
         {
-        	// Let robot settle in
-            mEnv->step(actions);
-            continue;
+            mEnv->getForces(forces);
+            mControl->getAction(actions, forces, mEnv->getTime());
+        } else {
+            mControl->getAction(actions, 0, mEnv->getTime());
         }
-        mControl->getAction(actions, 0, mEnv->getTime());
 
         // Scale actions
         for (int i = 0; i < 4; i++)
@@ -59,12 +59,12 @@ double OpenLoopExperiment::start(double* time_simulated, double* distance, doubl
             *time_simulated = mEnv->getTime();
             *distance = mEnv->getDistance();
             *energy_consumed = mEnv->getEnergyConsumed();
-        	return 0;
+        	return false;
         }
     }
 
     *time_simulated = mEnv->getTime();
     *distance = mEnv->getDistance();
     *energy_consumed = mEnv->getEnergyConsumed();
-    return mEnv->getReward() * -1;
+    return true;
 }

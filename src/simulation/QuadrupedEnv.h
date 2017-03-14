@@ -12,7 +12,6 @@ public:
 
 	void setMaxRotation(int max) {maxRotation = max;}
 	bool step(double* action);
-	double getReward();
 	double getTime();
 	double getDistance();
 	double getEnergyConsumed();
@@ -54,6 +53,7 @@ private:
 	double window2buffer = 1;           // framebuffersize / windowsize (for scaled video modes)
 
 	bool render_env = false;
+	bool stop_simulation = false;
 
 	int mSkipFrames = 1;
 	double initialX = 0.0;
@@ -63,6 +63,14 @@ private:
 
 	double energy = 0;
 	double y_rotation = 0;
+
+	// Energy computation variables
+	int actuator_indices[4];
+	int shoulder_indices[4];
+	int shoulder_qpos_indices[4];
+	double prev_shoulder_qpos[4];
+
+	int torso_xpos_id;
 
 	void initMuJoCo(const char* filename);
 	void closeMuJoCo();

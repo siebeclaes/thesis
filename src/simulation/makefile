@@ -8,4 +8,4 @@ BOOST_PYTHON=-I/usr/local/Cellar/boost-python/1.63.0/include -L/usr/local/Cellar
 DYNAMIC_LIB=-shared -undefined dynamic_lookup
 
 feedback_cpg_open_wrapper:
-	clang $(COMMON) $(EIGEN) $(BOOST_PYTHON) $(DYNAMIC_LIB) QuadrupedEnv.cpp Network.cpp CpgFeedbackControl.cpp OpenLoopExperiment.cpp feedback_cpg_open_wrapper.cpp -lmujoco140 -lglfw.3 -lboost_system -lboost_python3 -o ../../build/feedback_cpg_open.so
+	clang $(COMMON) $(EIGEN) $(BOOST_PYTHON) $(DYNAMIC_LIB) QuadrupedEnv.cpp Network.cpp CpgFeedbackControl.cpp Experiment.cpp feedback_cpg_wrapper.cpp -lmujoco140 -lglfw.3 -lboost_system -lboost_python3 -o ../../build/feedback_cpg.so
