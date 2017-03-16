@@ -10,7 +10,7 @@ using namespace std;
 class Experiment
 {
 public:
-	Experiment(Control *control, bool closed_loop, const char* filename, const int skip_frames, bool render);
+	Experiment(Control *control, bool closed_loop, const char* filename, vector<pair<double, vector<double>>> p_perturbations, const int skip_frames, bool render);
 	~Experiment();
 
 	bool start(double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history);
@@ -20,6 +20,8 @@ private:
 	QuadrupedEnv *mEnv;
 	double duration = 15;
 	double amplitude = 30;
+
+	vector<pair<double, vector<double>>> perturbations;
 };
 
 #endif

@@ -134,6 +134,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
     mj_forward(m, d);
 
     // printf("Model mass: %f\n", mj_getTotalmass(m))
+    torso_body_id = mj_name2id(m, mjOBJ_BODY, "torso");
     torso_xpos_id = mj_name2id(m, mjOBJ_GEOM, "torso_geom");
     // printf("Torso_geom_id: %d\n", torso_xpos_id);
 
@@ -181,13 +182,23 @@ void QuadrupedEnv::closeMuJoCo()
     // mj_deactivate();
 }
 
-bool QuadrupedEnv::step(double* action)
+bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 {
 	bool survived = true;
 
     // Apply the control
 	for (int i = 0; i < 4; i++)
 		d->ctrl[i] = action[i];
+
+    // Clear old perturbations
+    mju_zero(d->xfrc_applied, 6*m->nbody);
+
+    // Apply perturbations if any
+    if (perturb_ft)
+    {
+        printf("Applying perturbation!!! \n x: %f\n", *(perturb_ft->begin()));
+        std::copy((*perturb_ft).begin(), (*perturb_ft).end(), &d->xfrc_applied[6*torso_body_id]);
+    }
 
     // Step the simulation mSkipFrames times
     // This advances the simulation while maintaining the same input

@@ -3,6 +3,9 @@
 
 #include "mujoco.h"
 #include "glfw3.h"
+#include <vector>
+
+using namespace std;
 
 class QuadrupedEnv
 {
@@ -11,7 +14,7 @@ public:
 	~QuadrupedEnv();
 
 	void setMaxRotation(int max) {maxRotation = max;}
-	bool step(double* action);
+	bool step(double* action, std::vector<double>* perturb_ft);
 	double getTime();
 	double getDistance();
 	double getEnergyConsumed();
@@ -70,6 +73,7 @@ private:
 	int shoulder_qpos_indices[4];
 	double prev_shoulder_qpos[4];
 
+	int torso_body_id;
 	int torso_xpos_id;
 
 	void initMuJoCo(const char* filename);

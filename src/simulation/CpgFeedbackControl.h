@@ -22,7 +22,7 @@ private:
 
 	bool closed_loop;
 	double prev_time = -1;
-	double dt = 0.001;
+	double dt = 0.0001;
 
 	Network n;
 

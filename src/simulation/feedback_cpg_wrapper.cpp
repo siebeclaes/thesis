@@ -15,6 +15,8 @@
 using namespace std::chrono;
 using namespace std;
 
+namespace bp = boost::python;
+
 
 int counter = 0;
 double total_simulated_time = 0;
@@ -72,7 +74,7 @@ CpgFeedbackControl* getClosedControl(const double *x, const int N)
   return control;
 }
 
-bool _evaluate(const char* model_file, bool closed_loop, const double *x, const int N, bool render, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
+bool _evaluate(const char* model_file, bool closed_loop, const double *x, const int N, bool render, vector<pair<double, vector<double>>> perturbations, double* time_simulated, double* distance, double* energy_consumed, vector<vector<double>>* action_history, vector<vector<double>>* sensor_history)
 {
   CpgFeedbackControl* control;
 
@@ -81,14 +83,14 @@ bool _evaluate(const char* model_file, bool closed_loop, const double *x, const 
   else
     control = getOpenControl(x, N);
   
-  Experiment exp(control, closed_loop, model_file, 5, render);
+  Experiment exp(control, closed_loop, model_file, perturbations, 5, render);
   bool result = exp.start(time_simulated, distance, energy_consumed, action_history, sensor_history);
 
   delete(control);
   return result;
 };
 
-boost::python::tuple evaluate(const char* model_file, bool closed_loop, boost::python::list& ls, bool render, bool logging) {
+boost::python::tuple evaluate(const char* model_file, bool closed_loop, bp::list& ls, bp::list& py_perturbations, bool render, bool logging) {
     ScopedGILRelease scoped;
 
     double time_simulated = 0;
@@ -98,6 +100,7 @@ boost::python::tuple evaluate(const char* model_file, bool closed_loop, boost::p
     vector<vector<double>> action_history;
     vector<vector<double>> sensor_history;
 
+    // Initialize history vectors
     if (logging)
     {
       for (int i = 0; i < 4; i++){
@@ -112,21 +115,36 @@ boost::python::tuple evaluate(const char* model_file, bool closed_loop, boost::p
     int num_variables = len(ls);
     double* variables = new double[num_variables];
 
+    // Extract CPG parameters from python list
     for (int i=0; i<num_variables; i++)
-      variables[i] = boost::python::extract<double>(ls[i]);
+      variables[i] = bp::extract<double>(ls[i]);
+
+    // Extract perturbations from python list
+    vector<pair<double, vector<double>>> perturbations(len(py_perturbations));
+    for (int i = 0; i < len(py_perturbations); i++)
+    {
+      bp::tuple t = bp::extract<bp::tuple>(py_perturbations[i]);
+      double application_time = bp::extract<double>(t[0]);
+      bp::list py_application_ft = bp::extract<bp::list>(t[1]);
+
+      perturbations[i].first = application_time;
+
+      for (int j = 0; j < len(py_application_ft); j++)
+        perturbations[i].second.push_back(bp::extract<double>(py_application_ft[j]));
+    }
 
     if (logging)
     {
-      result = _evaluate(model_file, closed_loop, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
+      result = _evaluate(model_file, closed_loop, variables, num_variables, render, perturbations, &time_simulated, &distance, &energy_consumed, &action_history, &sensor_history);
     } else {
-      result = _evaluate(model_file, closed_loop, variables, num_variables, render, &time_simulated, &distance, &energy_consumed, 0, 0);
+      result = _evaluate(model_file, closed_loop, variables, num_variables, render, perturbations, &time_simulated, &distance, &energy_consumed, 0, 0);
     }
     
 
     delete[] variables;
 
-    boost::python::list action_history_list;
-    boost::python::list sensor_history_list;
+    bp::list action_history_list;
+    bp::list sensor_history_list;
 
     if (logging) 
     {
