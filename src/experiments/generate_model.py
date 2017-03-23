@@ -29,8 +29,8 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 14000,
-			'actuator_kp': 25000,
+			'spring_stiffness': 400,
+			'actuator_kp': 254,
 		},
 		'FR': {
 			'motor': {
@@ -50,8 +50,8 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 14000,
-			'actuator_kp': 25000,
+			'spring_stiffness': 400,
+			'actuator_kp': 254,
 		},
 		'BL': {
 			'motor': {
@@ -60,19 +60,19 @@ model_config = {
 				'height': 5.06,
 				'leg_attachment_height': 3.3,
 			},
-			'position': 'front',
+			'position': 'back',
 			'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
-			'femur_angle': 25, # angle between femur and vertical in degrees
+			'femur_angle': 0, # angle between femur and vertical in degrees
 			'tibia_length': 8.5,
 			'spring_length': 2.5,
 			'femur_spring_tibia_joint_dst': 4.5,
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 14000,
-			'actuator_kp': 25000,
+			'spring_stiffness': 400,
+			'actuator_kp': 254,
 		},
 		'BR': {
 			'motor': {
@@ -81,19 +81,19 @@ model_config = {
 				'height': 5.06,
 				'leg_attachment_height': 3.3,
 			},
-			'position': 'front',
+			'position': 'back',
 			'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
-			'femur_angle': 25, # angle between femur and vertical in degrees
+			'femur_angle': 0, # angle between femur and vertical in degrees
 			'tibia_length': 8.5,
 			'spring_length': 2.5,
 			'femur_spring_tibia_joint_dst': 4.5,
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 14000,
-			'actuator_kp': 25000,
+			'spring_stiffness': 400,
+			'actuator_kp': 254,
 		},
 	},
 }
@@ -133,10 +133,10 @@ class MotorLeg(object):
 		width, length, height = self.config['motor']['width'], self.config['motor']['length'], self.config['motor']['height'] 
 		
 		leg_height = self.leg.get_height()
-		leg_xml = self.leg.generate_xml_leg((-1)**(self.leg_id%2) * (torso_width + 0.5), y, z - self.config['motor']['leg_attachment_height'])
+		leg_xml = self.leg.generate_xml_leg((-1)**((self.leg_id-1)%2) * (torso_width + 0.5), y, z - self.config['motor']['leg_attachment_height'])
 
 		motor = etree.Element('body')
-		motor_geom = etree.Element('geom', type="box", mass="67", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**(self.leg_id%2) * (torso_width - width/2) / model_scale, y / model_scale, (z-height/2) / model_scale))
+		motor_geom = etree.Element('geom', type="box", mass="0.067", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**((self.leg_id-1)%2) * (torso_width - width/2) / model_scale, y / model_scale, (z-height/2) / model_scale))
 		# motor_geom = etree.Element('geom', type="box", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**(self.leg_id%2) * (torso_width - width/2) / model_scale, y / model_scale, leg_height / model_scale))
 		
 		motor.extend([motor_geom, leg_xml])
@@ -182,7 +182,6 @@ class Leg(object):
 
 		self.tibia_foot = Point(0, tibia_foot_y, tibia_foot_z)
 		self.tibia_foot2 = Point(0, tibia_foot_y-0.2, tibia_foot_z-0.4)
-		print(self.tibia_foot.get_rescaled_text())
 
 	def offset_by(self, x, y, z):
 		self.femur_joint.offset_by(x, y, z)
@@ -202,7 +201,7 @@ class Leg(object):
 
 		tibia = etree.Element('body')
 		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text())
-		tibia_joint = etree.Element('joint', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
+		tibia_joint = etree.Element('joint', limited='false', range='0 20', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
 		tibia_site = etree.Element('site', name='s'+str(self.leg_id)+'_2', pos=self.tibia_attachment.get_rescaled_text())
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
@@ -213,8 +212,8 @@ class Leg(object):
 		tibia.extend([tibia_geom, tibia_joint, tibia_site, foot])
 		leg.extend([femur_geom, femur_joint, femur_site, tibia])
 
-		tendon = etree.Element('tendon', stiffness=str(self.config['spring_stiffness']))
-		spatial = etree.Element('spatial')
+		tendon = etree.Element('tendon')
+		spatial = etree.Element('spatial', stiffness=str(self.config['spring_stiffness']))
 		site1 = etree.Element('site', site='s'+str(self.leg_id)+'_1')
 		site2 = etree.Element('site', site='s'+str(self.leg_id)+'_2')
 
@@ -233,10 +232,10 @@ class Leg(object):
 def generate_xml_defaults():
 	default = etree.Element('default')
 
-	geom = etree.Element('geom', rgba=".9 .7 .1 1", size="0.05", density="1000")
+	geom = etree.Element('geom', rgba=".9 .7 .1 1", size="0.05", density="1")
 	site = etree.Element('site', type="sphere", rgba=".9 .9 .9 1", size="0.005")
 	joint = etree.Element('joint', type="hinge", axis="1 0 0", limited="true", range="-100 100", solimplimit="0.95 0.95 0.1")
-	tendon = etree.Element('tendon', width="0.02", rgba=".95 .3 .3 1", limited="true", range="0.25 1",  stiffness="15000")
+	tendon = etree.Element('tendon', width="0.02", rgba=".95 .3 .3 1", limited="false", range="0.25 1",  stiffness="4000")
 
 	default.extend([geom, site, joint, tendon])
 
@@ -271,7 +270,7 @@ def generate_body():
 	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='3')
 
 	torso = etree.Element('body', name='torso')
-	torso_geom = etree.Element('geom', type="box", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="0 0 {0:.5f}".format((leg_height + height/2) / model_scale))
+	torso_geom = etree.Element('geom', type="box", mass="0.667", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="0 0 {0:.5f}".format((leg_height + height/2) / model_scale))
 	torso_joint = etree.Element('joint', type='free', limited='false', name='gravity')
 	torso_sensor_site = etree.Element('site', name='sensor_torso', pos="0 0 {0:.5f}".format(leg_height / model_scale))
 
@@ -300,6 +299,10 @@ def generate_sensors():
 	return sensor
 
 def generate_xml_model(output_file, config=None):
+	tendons.clear()
+	actuators.clear()
+	sensors.clear()
+
 	if config is not None:
 		# update model configuration
 		for key, value in config.items():
@@ -310,8 +313,10 @@ def generate_xml_model(output_file, config=None):
 	compiler_settings = {'inertiafromgeom': 'true', 'angle': 'degree', 'coordinate': "global"}
 
 	compiler = etree.Element('compiler', **compiler_settings)
+	option = etree.Element('option', gravity='0 0 -98.1')
 
 	root.append(compiler)
+	root.append(option)
 	root.append(generate_xml_defaults())
 	root.append(generate_xml_assets())
 	root.append(generate_body())
