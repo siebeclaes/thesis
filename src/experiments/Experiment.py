@@ -1,22 +1,26 @@
 import feedback_cpg as sim
-import generate_model
+from model_variations import generate_temp_model_file, generate_model_variations
 from pymongo import MongoClient
+from utils import printProgressBar
 import datetime
+import generate_model
 import cma
 import multiprocessing
 import numpy as np
+import random
 
 
 def eval_wrapper(variables):
 	model_file = variables['model_file']
 	closed_loop = variables['closed_loop']
 	params = variables['params']
+	perturbations = variables['perturbations']
 	render = variables['render']
 	logging = variables['logging']
-	return sim.evaluate(model_file, closed_loop, params.tolist(), render, logging)
+	return sim.evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
 
 class Experiment:
-	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20):
+	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0):
 		self.default_morphology = default_morphology
 		self.closed_loop = closed_loop
 		self.initial_values = initial_values
@@ -25,6 +29,12 @@ class Experiment:
 		self.variances = variances
 		self.max_iters = max_iters
 		self.E0 = E0
+		self.perturbation_params = perturbation_params
+		self.variation_params = variation_params
+		self.num_variations = num_variations
+		self.variation_delta_dicts = []
+		self.experiment_tag = experiment_tag
+		self.experiment_tag_index = experiment_tag_index
 
 		self.type = "closed" if self.closed_loop else "open"
 
@@ -39,6 +49,20 @@ class Experiment:
 		self.best_id = 0
 		self.best_reward = 0
 
+	def setup_model_variations(self):
+		self.model_files = []
+		if not self.variation_params:
+			self.model_files.append(generate_temp_model_file(self.default_morphology))
+		else:
+			variation_xml_paths, delta_dicts = generate_model_variations(self.default_morphology, self.variation_params, self.num_variations)
+			self.model_files.extend(variation_xml_paths)
+			self.variation_delta_dicts = delta_dicts
+
+	def run(self):
+		self.setup_model_variations()
+		self.run_optimization(logging=False)
+
+
 	def normalize_initial_values(self):
 		initial_normalized = [(x-l) / (u-l) for x, l, u in zip(self.initial_values, self.lower_bounds, self.upper_bounds)]
 		return initial_normalized
@@ -50,30 +74,61 @@ class Experiment:
 			array[i] = var*(self.upper_bounds[i]-self.lower_bounds[i]) + self.lower_bounds[i]
 			i += 1
 
+		array[0] = array[0] * array[0]
+		array[1] = array[1] * array[1]
+		array[2] = array[2] * array[2]
+		array[3] = array[3] * array[3]
+
+		array[6] = array[6] * 2 * np.pi
+		array[7] = array[7] * 2 * np.pi
+
 		return array
 
-	def run_optimization(self, model_file, logging=False):
+	def run_optimization(self, logging=False):
 		es = cma.CMAEvolutionStrategy(self.normalize_initial_values(), self.variances,
-			{'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :0})
-		
+			{'popsize': 25, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
+		# print('Population size: ' + str(es.popsize))
+		self.seed = es.opts['seed']
+
 		iteration = 0
 		simulation_id = 0
 		mp_pool = multiprocessing.Pool(8)
 
+		if self.perturbation_params:
+			perturb_cov = np.diag(self.perturbation_params['perturb_variances'])
+
 		while not es.stop():
 			solutions = es.ask()
-			print("New solutions #" + str(iteration))
-			x = [{'model_file': model_file, 'closed_loop': self.closed_loop, 'params': self.denormalize(x), 'render': False, 'logging': logging} for x in solutions]
-			results = mp_pool.map(eval_wrapper, x)
+			variation_indices = [int(random.uniform(0, len(self.model_files))) for _ in range(len(solutions))]
+			model_files = [self.model_files[i] for i in variation_indices]
+			
+			if self.perturbation_params:
+				solution_perturbations = []
+				for _ in range(len(solutions)):
+					occurences = np.random.geometric(p=1/self.perturbation_params['expected_occurences']) - 1 # numpy uses shifted geometric
+					perturbations = []
+					for i in range(occurences):
+						perturb_time = np.random.random() * 14
+						force_torque = np.random.multivariate_normal(self.perturbation_params['perturb_means'], perturb_cov)
+						perturbations.append([perturb_time, list(force_torque)])
+					solution_perturbations.append(perturbations)
+			else:
+				solution_perturbations = [[]]*len(solutions)
+
+			# print("New solutions #" + str(iteration))
+			printProgressBar(iteration, self.max_iters-1, prefix = 'Progress:', suffix = 'Complete', length = 50)
+
+			x = [{'model_file': model_file, 'closed_loop': self.closed_loop, 'params': self.denormalize(x), 'render': False, 'logging': logging, 'perturbations': p} for x, model_file, p in zip(solutions, model_files, solution_perturbations)]
+			results = mp_pool.map(eval_wrapper, x) 
 
 			rewards = []
 			max_reward = 0
 			avg_reward = 0
-			for result, solution in zip(results, solutions):
+			for result, solution, variation_index, perturbation in zip(results, solutions, variation_indices, solution_perturbations):
 				succes, simulated_time, distance, energy_consumed, action_history, sensor_history = result
 	
 				# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
-				reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance*np.tanh(energy_consumed/self.E0)
+				reward = 0 if distance < 0 or not succes else (10-0.01*(energy_consumed-self.E0)**2)*(distance)
 
 				rewards.append(reward*-1) # May need to be a numpy.ndarray
 				self.total_simulated_time += simulated_time
@@ -86,6 +141,8 @@ class Experiment:
 									'action_history': action_history,
 									'sensor_history': sensor_history,
 									'reward': reward,
+									'variation_index': variation_index,
+									'perturbation': perturbation,
 								}
 				self.simulations.append(simulation_dict)
 
@@ -104,7 +161,7 @@ class Experiment:
 			self.max_score_evolution.append(max_reward)
 
 			es.tell(solutions, rewards)
-			es.disp()
+			# es.disp()
 
 			iteration += 1
 
@@ -113,7 +170,7 @@ class Experiment:
 
 		if iteration < 2: #restart
 			self.init_document()
-			return self.run_optimization(model_file, logging)
+			return self.run_optimization(logging)
 		else:
 			# Save results in DB
 			client = MongoClient('localhost', 27017)
@@ -129,7 +186,9 @@ class Experiment:
 		doc['generate_model_version'] = generate_model.get_model_generator_version()
 		doc['cpg_version'] = sim.get_cpg_version()
 		doc['E0'] = self.E0
-		doc['remarks'] = 'Reward function: 0 if distance < 0 or not succes else 1.447812*9.81*distance*np.tanh(energy_consumed/' + str(self.E0) + ') increased upper bound on omega'
+		doc['experiment_tag'] = self.experiment_tag
+		doc['experiment_tag_index'] = self.experiment_tag_index
+		doc['remarks'] = 'Reward function: 0 if distance < 0 or not succes else (10-0.01*(energy-15)**2)*(distance) perturbations'
 		doc['default_morphology'] = self.default_morphology
 		doc['optimization'] = 	{'type': 'CMA',
 									 'params': {
@@ -137,9 +196,13 @@ class Experiment:
 									 	'lower_bounds': self.lower_bounds,
 									 	'upper_bounds': self.upper_bounds,
 									 	'variances': self.variances,
-									 	'max_iters': self.max_iters
+									 	'max_iters': self.max_iters,
+									 	'seed': self.seed,
 									 }
 								}
+		doc['delta_dicts'] = self.variation_delta_dicts
+		doc['perturbation_params'] = self.perturbation_params
+		doc['variation_params'] = self.variation_params
 		doc['results'] = {
 						'best_id': self.best_id,
 						'total_simulated_time': self.total_simulated_time,
@@ -153,11 +216,148 @@ class Experiment:
 
 
 if __name__ == '__main__':
-	lb = [0, 0, 0, 0, -1, -4, 0.5, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0, 0]
-	ub = [2, 2, 2, 2, 2, 4, 10, 10, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 2*np.pi]
+	# lb = [0, 0, 0, 0, -1, -4, 0.5, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0, 0]
+	# ub = [2, 2, 2, 2, 2, 4, 10, 10, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 2*np.pi]
 
-	initial = [1, 1, 1, 1, 0, 0, 2, 2, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
+	# initial = [1, 1, 1, 1, 0, 0, 2, 2, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
+	
+	# mu is target amplitude raised to power 2
+	# omega frequency should be multiplied by 2*pi
 
-	e = Experiment({}, False, initial, lb, ub, 0.5, 400, 7)
-	e.run_optimization('/Users/Siebe/Dropbox/Thesis/Scratches/model.xml')
+	# MODEL PARAMETERS
+	model_config = {
+		'body': {
+			'width': 15,
+			'height': 3,
+			'length': 25
+		},
+		'legs': {
+			'FL': {
+				'motor': {
+					'width': 3.6,
+					'length': 3.6,
+					'height': 5.06,
+					'leg_attachment_height': 3.3,
+				},
+				'position': 'front',
+				'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
+				'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
+				'femur_length': 7,
+				'femur_angle': 25, # angle between femur and vertical in degrees
+				'tibia_length': 8.5,
+				'spring_length': 2.5,
+				'femur_spring_tibia_joint_dst': 4.5,
+				'tibia_spring_to_joint_dst': 3.5,
+				'hip_damping': 0.2,
+				'knee_damping': 0.2,
+				'spring_stiffness': 400,
+				'actuator_kp': 254,
+			},
+			'FR': {
+				'motor': {
+					'width': 3.6,
+					'length': 3.6,
+					'height': 5.06,
+					'leg_attachment_height': 3.3,
+				},
+				'position': 'front',
+				'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
+				'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
+				'femur_length': 7,
+				'femur_angle': 25, # angle between femur and vertical in degrees
+				'tibia_length': 8.5,
+				'spring_length': 2.5,
+				'femur_spring_tibia_joint_dst': 4.5,
+				'tibia_spring_to_joint_dst': 3.5,
+				'hip_damping': 0.2,
+				'knee_damping': 0.2,
+				'spring_stiffness': 400,
+				'actuator_kp': 254,
+			},
+			'BL': {
+				'motor': {
+					'width': 3.6,
+					'length': 3.6,
+					'height': 5.06,
+					'leg_attachment_height': 3.3,
+				},
+				'position': 'back',
+				'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
+				'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
+				'femur_length': 7,
+				'femur_angle': 0, # angle between femur and vertical in degrees
+				'tibia_length': 8.5,
+				'spring_length': 2.5,
+				'femur_spring_tibia_joint_dst': 4.5,
+				'tibia_spring_to_joint_dst': 3.5,
+				'hip_damping': 0.2,
+				'knee_damping': 0.2,
+				'spring_stiffness': 400,
+				'actuator_kp': 254,
+			},
+			'BR': {
+				'motor': {
+					'width': 3.6,
+					'length': 3.6,
+					'height': 5.06,
+					'leg_attachment_height': 3.3,
+				},
+				'position': 'back',
+				'leg_attachment_height_offset': 0, # height offset of the leg attachment point relative to the middle of height of the body
+				'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
+				'femur_length': 7,
+				'femur_angle': 0, # angle between femur and vertical in degrees
+				'tibia_length': 8.5,
+				'spring_length': 2.5,
+				'femur_spring_tibia_joint_dst': 4.5,
+				'tibia_spring_to_joint_dst': 3.5,
+				'hip_damping': 0.2,
+				'knee_damping': 0.2,
+				'spring_stiffness': 400,
+				'actuator_kp': 254,
+			},
+		},
+	}
+
+	variation_params = {'legs': {
+			'FL': {
+				'tibia_length': {'normal': [0, 0.2]},
+			},
+			'FR': {
+				'tibia_length': {'normal': [0, 0.2]},
+			},
+			'BL': {
+				'tibia_length': {'normal': [0, 0.2]},
+			},
+			'BR': {
+				'tibia_length': {'normal': [0, 0.2]},
+			},
+		},
+	}
+
+	variation_params_spring = {'legs': {
+			'FL': {
+				'spring_stiffness': {'normal': [0, 40]},
+			},
+			'FR': {
+				'spring_stiffness': {'normal': [0, 40]},
+			},
+			'BL': {
+				'spring_stiffness': {'normal': [0, 40]},
+			},
+			'BR': {
+				'spring_stiffness': {'normal': [0, 40]},
+			},
+		},
+	}
+
+	perturb_params = {'expected_occurences': 3, 'perturb_means': [100]*6, 'perturb_variances': [50]*6}
+
+	lb = [15, 15, 15, 15, -30, -30, 0.5, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0, 0]
+	ub = [45, 45, 45, 45, 30, 30, 3, 3, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 2*np.pi]
+
+	initial = [25, 25, 25, 25, 0, 0, 0.6, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
+
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 250, 30, variation_params=None, num_variations=15, perturbation_params=perturb_params)
+	e.run()
 
