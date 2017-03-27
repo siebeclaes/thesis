@@ -196,7 +196,7 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
     // Apply perturbations if any
     if (perturb_ft)
     {
-        printf("Applying perturbation!!! \n x: %f\n", *(perturb_ft->begin()));
+        // printf("Applying perturbation!!! \n x: %f\n", *(perturb_ft->begin()));
         std::copy((*perturb_ft).begin(), (*perturb_ft).end(), &d->xfrc_applied[6*torso_body_id]);
     }
 

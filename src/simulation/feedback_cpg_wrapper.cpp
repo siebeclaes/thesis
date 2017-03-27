@@ -123,7 +123,7 @@ boost::python::tuple evaluate(const char* model_file, bool closed_loop, bp::list
     vector<pair<double, vector<double>>> perturbations(len(py_perturbations));
     for (int i = 0; i < len(py_perturbations); i++)
     {
-      bp::tuple t = bp::extract<bp::tuple>(py_perturbations[i]);
+      bp::list t = bp::extract<bp::list>(py_perturbations[i]);
       double application_time = bp::extract<double>(t[0]);
       bp::list py_application_ft = bp::extract<bp::list>(t[1]);
 
