@@ -16,6 +16,7 @@ from matplotlib.figure import Figure
 from pymongo import MongoClient
 
 from operator import itemgetter
+from model_variations import generate_temp_model_file, dict_elementwise_operator
 
 progname = os.path.basename(sys.argv[0])
 progversion = "0.1"
@@ -24,9 +25,11 @@ def eval_wrapper(variables):
     model_file = variables['model_file']
     closed_loop = variables['closed_loop']
     params = variables['params']
+    # perturbations = variables['perturbations']
+    perturbations = []
     render = variables['render']
     logging = variables['logging']
-    return evaluate(model_file, closed_loop, params.tolist(), render, logging)
+    return evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
 
 def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
@@ -59,16 +62,18 @@ class SimulationView(QtWidgets.QVBoxLayout):
 
         self.simulation = None
 
+        self.model_file = None
 
-    def set_simulation(self, simulation, experiment_id, simulation_id, closed_loop):
-        self.simulation = simulation
-        self.experiment_id = experiment_id
+
+    def set_simulation(self, experiment, simulation_id):
+        self.experiment = experiment
+        self.simulation = experiment['results']['simulations'][simulation_id]
         self.simulation_id = simulation_id
-        self.closed_loop = closed_loop
+        self.closed_loop = True if self.experiment['type'] == 'closed' else False
 
-        self.add_cpg_params()
+        self.show_simulation_info()
 
-        if len(simulation['action_history']) == 0:
+        if len(self.simulation['action_history']) == 0:
             # Not simulated with debug yet
             label = QtWidgets.QLabel('No action or sensor history yet')
             self.addWidget(label)
@@ -78,10 +83,26 @@ class SimulationView(QtWidgets.QVBoxLayout):
             self.addWidget(run_analyze)
 
             run_simulation = QtWidgets.QPushButton('View simulation')
-            run_simulation.clicked.connect(self.run_simulation)
+            run_simulation.clicked.connect(self.view_simulation)
             self.addWidget(run_simulation)
         else:
             self.show_plots()
+
+    def show_simulation_info(self):
+        layout = QtWidgets.QVBoxLayout()
+        layout.addLayout(self.add_cpg_params())
+
+        distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
+        layout.addWidget(distance)
+        
+        energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
+        layout.addWidget(energy)
+
+        if 'perturbation' in self.simulation:
+            num_perturbations = QtWidgets.QLabel('num_perturbations: ' + str(len(self.simulation['perturbation'])))
+            layout.addWidget(num_perturbations)
+
+        self.addLayout(layout)
 
     def add_cpg_params(self):
         params = self.simulation['cpg_params']
@@ -91,13 +112,14 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[7], params[5], params[9]))
         layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[7], params[5], params[9]))
 
-        self.addLayout(layout)
+        return layout
 
     def leg_cpg_param_layout(self, text, mu, omega, offset, d):
         layout = QtWidgets.QVBoxLayout()
 
-        mu = mu * -1 * 30 / 180 * 3.141592654
-        d = d * -1 * 30 / 180 * 3.141592654
+        mu = np.sqrt(mu)
+        # d = d * -1 * 30 / 180 * 3.141592654
+        omega = omega / 2 / np.pi
 
         title = QtWidgets.QLabel(text)
         layout.addWidget(title)
@@ -145,25 +167,30 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.sensor_history_plot.axes.legend()
         self.sensor_history_plot.draw()
 
-    def analyze_simulation(self):
+    def run_simulation(self, render, logging):
         cpg_params = self.simulation['cpg_params']
-        model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
-        render = False
-        logging = True
-        succes, simulated_time, distance, energy_consumed, action_history, sensor_history = evaluate(model_file, self.closed_loop, cpg_params, render, logging)
+        self.model_file=None
+        if not self.experiment['default_morphology']:
+            self.model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
+        elif not self.experiment['delta_dicts']:
+            self.model_file = generate_temp_model_file(self.experiment['default_morphology'])
+        elif not self.model_file:
+            model_config = dict_elementwise_operator(self.experiment['default_morphology'], self.experiment['delta_dicts'][self.simulation['variation_index']])
+            self.model_file = generate_temp_model_file(model_config)
+        
+        perturbations = self.simulation.get('perturbation', [])
+        return evaluate(self.model_file, self.closed_loop, cpg_params, perturbations, render, logging)
+
+    def analyze_simulation(self):
+        succes, simulated_time, distance, energy_consumed, action_history, sensor_history = self.run_simulation(render=False, logging=True)
 
         self.simulation['action_history'] = action_history
         self.simulation['sensor_history'] = sensor_history
 
         self.show_plots()
 
-    def run_simulation(self):
-        cpg_params = self.simulation['cpg_params']
-        model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
-        render = True
-        logging = False
-        succes, simulated_time, distance, energy_consumed, action_history, sensor_history = evaluate(model_file, self.closed_loop, cpg_params, render, logging)
-
+    def view_simulation(self):
+        self.run_simulation(render=True, logging=False)
 
 class ExperimentView(QtWidgets.QHBoxLayout):
     def __init__(self, parent=None):
@@ -188,54 +215,126 @@ class ExperimentView(QtWidgets.QHBoxLayout):
         self.show_best_button.clicked.connect(self.show_best)
         experiment_details.addWidget(self.show_best_button)
 
-        experiment_details_widget = QtWidgets.QWidget()
-        experiment_details_widget.setLayout(experiment_details)
+        self.analyze_variation_button = QtWidgets.QPushButton('Analyze variation performance')
+        self.analyze_variation_button.clicked.connect(self.analyze_variation_performance)
+        experiment_details.addWidget(self.analyze_variation_button)
 
-        self.right_panel.addWidget(experiment_details_widget)
+        self.analyze_perturb_button = QtWidgets.QPushButton('Analyze perturbation performance')
+        self.analyze_perturb_button.clicked.connect(self.perturbation_test)
+        experiment_details.addWidget(self.analyze_perturb_button)
+
+        self.experiment_details_widget = QtWidgets.QWidget()
+        self.experiment_details_widget.setLayout(experiment_details)
+
+        self.right_panel.addWidget(self.experiment_details_widget)
         self.addLayout(self.right_panel)
 
     def show_run(self, params):
         model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
+        perturbations = []
         render = True
         logging = False
-        evaluate(model_file, self.closed_loop, params, render, logging)
+        evaluate(model_file, self.closed_loop, params, perturbations, render, logging)
 
     def show_best(self):
         params = self.experiment['results']['simulations'][self.experiment['results']['best_id']]['cpg_params']
         self.show_run(params)
 
+
+    def analyze_variation_performance(self):
+        variation_best = [(0,0)] * len(self.experiment['delta_dicts'])
+
+        counter = 0
+        for simulation in self.experiment['results']['simulations']:
+            variation_index = simulation['variation_index']
+            reward = simulation['reward']
+
+            if reward > variation_best[variation_index][0]:
+                variation_best[variation_index] = (reward, counter)
+
+            counter += 1
+
+        for i in range(len(variation_best)):
+            print('Variation ' + str(i) + ': ' + str(variation_best[i][0]))
+
+    def perturbation_test(self):
+        perturbation_params = self.experiment.get('perturbation_params', [])
+        num_tests = 20
+
+        if perturbation_params:
+            test_perturbations = []
+            perturb_cov = np.diag(perturbation_params['perturb_variances'])
+            for _ in range(num_tests):
+                occurences = np.random.geometric(p=1/perturbation_params['expected_occurences']) - 1 # numpy uses shifted geometric
+                perturbations = []
+                for i in range(occurences):
+                    perturb_time = np.random.random() * 14
+                    force_torque = np.random.multivariate_normal(perturbation_params['perturb_means'], perturb_cov)
+                    perturbations.append([perturb_time, list(force_torque)])
+                test_perturbations.append(perturbations)
+
+            # Test in simulation
+            cpg_params = self.experiment['results']['simulations'][self.experiment['results']['best_id']]['cpg_params']
+            model_file=None
+            if not self.experiment['default_morphology']:
+                model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
+            elif not self.experiment['delta_dicts']:
+                model_file = generate_temp_model_file(self.experiment['default_morphology'])
+            elif not self.model_file:
+                model_config = dict_elementwise_operator(self.experiment['default_morphology'], self.experiment['delta_dicts'][self.simulation['variation_index']])
+                model_file = generate_temp_model_file(model_config)
+            
+            rewards = []
+            for perturbation in test_perturbations:
+                succes, simulated_time, distance, energy_consumed, action_history, sensor_history = evaluate(model_file, self.closed_loop, cpg_params, perturbation, False, False)
+                reward = 0 if distance < 0 or not succes else (10-0.01*(energy_consumed-self.experiment['E0'])**2)*(distance)
+                rewards.append(reward)
+
+            print('Minimum: ' + str(min(rewards)))
+            print('Mean: ' + str(sum(rewards)/len(rewards)))
+            print('Maximum: ' + str(max(rewards)))
+            print('Standard deviation: ' + str(np.std(rewards)))
+
     def update_experiment(self, experiment):
         self.experiment = experiment
         self.closed_loop = True if self.experiment['type'] == 'closed' else False
+
         self.simulation_list_widget.clear()
 
         self.best_score_label.setText(str(experiment['remarks']))
-        counter = 0
 
         simulation_list = experiment['results']['simulations']
         # sort this list in descending order according to reward
-        self.simulation_list = sorted(simulation_list, key=itemgetter('reward'), reverse=True)
+        self.simulation_list = sorted(enumerate(simulation_list), key=lambda x: x[1]['reward'], reverse=True)
 
-        for simulation in self.simulation_list:
+        for (simulation_id, simulation) in self.simulation_list:
             reward = simulation['reward']
-            # reward = 0
 
             item = QtWidgets.QListWidgetItem()
             item.setText(str(simulation['iter']) + ' - ' + str(reward))
-            item.setData(QtCore.Qt.UserRole, counter)
+            item.setData(QtCore.Qt.UserRole, simulation_id)
             self.simulation_list_widget.addItem(item)
-            counter += 1
 
+        # Disable analyze buttons
+        self.analyze_variation_button.setEnabled(False)
+        self.analyze_perturb_button.setEnabled(False)
+        if self.experiment.get('delta_dicts', []):
+            # Enable analyze variation button
+            self.analyze_variation_button.setEnabled(True)
+        if self.experiment.get('perturbation_params', []):
+            # Enable analyze variation button
+            self.analyze_perturb_button.setEnabled(True)
+
+        self.right_panel.setCurrentWidget(self.experiment_details_widget)
         self.score_evolution_plot.axes.cla()
         self.score_evolution_plot.axes.plot(experiment['results']['avg_score_evolution'], 'b', experiment['results']['max_score_evolution'], 'r')
         self.score_evolution_plot.draw()
 
     def simulation_selected(self, item):
         simulation_id = item.data(QtCore.Qt.UserRole)
-        simulation = self.simulation_list[simulation_id]
 
         self.simulation_panel = SimulationView()
-        self.simulation_panel.set_simulation(simulation, self.experiment['_id'], simulation_id, self.closed_loop) # wrong simulation id
+        self.simulation_panel.set_simulation(self.experiment, simulation_id)
         simulation_panel_widget = QtWidgets.QWidget()
         simulation_panel_widget.setLayout(self.simulation_panel)
         self.right_panel.addWidget(simulation_panel_widget)
@@ -254,7 +353,7 @@ class ExperimentsListWidget(QtWidgets.QListWidget):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
         experiments_collection = db['experiments']
-        for doc in experiments_collection.find({}):
+        for doc in experiments_collection.find({}, {"results.simulations": 0}):
             self.experiments.append(doc)
 
             item = QtWidgets.QListWidgetItem()
