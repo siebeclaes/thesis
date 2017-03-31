@@ -12,7 +12,6 @@
 #include "Experiment.h"
 #include "CpgFeedbackControl.h"
 
-using namespace std::chrono;
 using namespace std;
 
 namespace bp = boost::python;
@@ -20,8 +19,6 @@ namespace bp = boost::python;
 
 int counter = 0;
 double total_simulated_time = 0;
-
-high_resolution_clock::time_point start_time;
 
 class ScopedGILRelease {
 public:
