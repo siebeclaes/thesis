@@ -1,10 +1,14 @@
 #include "QuadrupedEnv.h"
 
-#include "glfw3.h"
+
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include <math.h>
+
+#ifdef WITH_RENDER
+#include "glfw3.h"
+#endif
 
 #define E0 100
 
@@ -12,6 +16,7 @@ QuadrupedEnv* env = 0;
 bool activated = false;
 
 
+#ifdef WITH_RENDER
 void mouse_button_g(GLFWwindow* window, int button, int act, int mods)
 {
     if (env != NULL)
@@ -34,11 +39,13 @@ void keyboard_g(GLFWwindow* window, int key, int scancode, int act, int mods)
     if (env != NULL)
         env->keyboard(window, key, scancode, act, mods);
 }
+#endif
 
 QuadrupedEnv::QuadrupedEnv(const char* filename, const int skip_frames, bool render)
 {
+
+#ifdef WITH_RENDER
 	render_env = render;
-	
 	if (render_env)
 	{
 		env = this;
@@ -93,6 +100,7 @@ QuadrupedEnv::QuadrupedEnv(const char* filename, const int skip_frames, bool ren
 	    glfwSetMouseButtonCallback(window, mouse_button_g);
 	    glfwSetScrollCallback(window, scroll_g);
 	}
+#endif
 
 	mSkipFrames = skip_frames;
 	initMuJoCo(filename);
@@ -154,6 +162,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
     for (int i = 0; i < 4; i++)
         prev_shoulder_qpos[i] = d->qpos[shoulder_qpos_indices[i]];
 
+#ifdef WITH_RENDER
     if (render_env)
     {
     	// re-create custom context
@@ -162,6 +171,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
 	    autoscale(window);
 	    mjv_updateScene(m, d, &vopt, &pert, &cam, mjCAT_ALL, &scn);
     }
+#endif
 }
 
 void QuadrupedEnv::closeMuJoCo()
@@ -170,6 +180,8 @@ void QuadrupedEnv::closeMuJoCo()
     mj_deleteModel(m);
     d = NULL;
     m = NULL;
+
+#ifdef WITH_RENDER
     if (render_env) 
     {
     	mjr_freeContext(&con);
@@ -179,6 +191,7 @@ void QuadrupedEnv::closeMuJoCo()
         activated = false;
         env = NULL;
     }
+#endif
     // mj_deactivate();
 }
 
@@ -263,6 +276,7 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
         survived = false;
     }
 
+#ifdef WITH_RENDER
     // Rendering stuff
 	if (render_env)
 	{
@@ -271,6 +285,7 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 		render(window);
 		glfwPollEvents();
 	}
+#endif
 
 	return survived;
 }
@@ -347,7 +362,7 @@ void QuadrupedEnv::getActuatorForces(double* forces)
     }
 }
 
-
+#ifdef WITH_RENDER
 // Rendering stuff
 // center and scale view
 void QuadrupedEnv::autoscale(GLFWwindow* window)
@@ -611,4 +626,5 @@ void QuadrupedEnv::keyboard(GLFWwindow* window, int key, int scancode, int act, 
             }
     }
 }
+#endif // WITH_RENDER
 

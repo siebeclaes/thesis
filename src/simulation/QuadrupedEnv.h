@@ -2,8 +2,11 @@
 #define _QUADRUPEDENV_H
 
 #include "mujoco.h"
-#include "glfw3.h"
 #include <vector>
+
+#ifdef WITH_RENDER
+#include "glfw3.h"
+#endif
 
 using namespace std;
 
@@ -29,6 +32,7 @@ private:
 	mjModel* m;
 	mjData* d;
 
+#ifdef WITH_RENDER
 	mjvScene scn;
 	mjvCamera cam;
 	mjvOption vopt;
@@ -57,6 +61,7 @@ private:
 
 	bool render_env = false;
 	bool stop_simulation = false;
+#endif
 
 	int mSkipFrames = 1;
 	double initialX = 0.0;
@@ -81,9 +86,11 @@ private:
 	void unitVector(double* v);
 	double angleBetween(double* a, double* b);
 
+#ifdef WITH_RENDER
 	void makeoptionstring(const char* name, char key, char* buf);
 	void render(GLFWwindow* window);
 	void autoscale(GLFWwindow* window);
+#endif
 };
 
 
