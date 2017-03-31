@@ -24,10 +24,13 @@ public:
 	void getForces(double* forces);
 	void getActuatorForces(double* forces);
 
+#ifdef WITH_RENDER
 	void mouse_button(GLFWwindow* window, int button, int act, int mods);
 	void mouse_move(GLFWwindow* window, double xpos, double ypos);
 	void scroll(GLFWwindow* window, double xoffset, double yoffset);
 	void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods);
+#endif
+	
 private:
 	mjModel* m;
 	mjData* d;
