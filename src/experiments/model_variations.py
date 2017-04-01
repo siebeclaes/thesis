@@ -2,6 +2,7 @@ import operator
 from generate_model import generate_xml_model
 import tempfile
 import numpy as np
+import os
 
 def dict_elementwise_operator(left, right, operator=operator.add):
 	combined = {}
@@ -75,8 +76,13 @@ def sample_multivariate_from_dict(d, num_samples=1):
 
 
 def generate_temp_model_file(config):
-	_, xml_path = tempfile.mkstemp(suffix='.xml', prefix='model')
+	fd, xml_path = tempfile.mkstemp(suffix='.xml', prefix='model')
 	generate_xml_model(xml_path, config)
+
+	# This is necessary to avoid leaking the file descriptor
+	# Removing this line leads to an `OSError: [Errno 24] Too many open files:`
+	# See: https://www.logilab.org/blogentry/17873
+	os.close(fd)
 
 	return xml_path
 

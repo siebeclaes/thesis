@@ -1,3 +1,4 @@
+import os
 import feedback_cpg as sim
 from model_variations import generate_temp_model_file, generate_model_variations
 from pymongo import MongoClient
@@ -11,13 +12,19 @@ import random
 
 
 def eval_wrapper(variables):
-	model_file = variables['model_file']
+	model_files = variables['model_files']
 	closed_loop = variables['closed_loop']
 	params = variables['params']
 	perturbations = variables['perturbations']
 	render = variables['render']
 	logging = variables['logging']
-	return sim.evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
+	# print(model_files)
+	results = []
+	for model_file in model_files:
+		r = sim.evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
+		results.append(r)
+	# print(results)
+	return results
 
 class Experiment:
 	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0):
@@ -84,6 +91,18 @@ class Experiment:
 
 		return array
 
+	def sample_variations(self, num):
+		model_files = []
+		variation_delta_dicts = []
+		if not self.variation_params:
+			model_files.append(generate_temp_model_file(self.default_morphology))
+		else:
+			variation_xml_paths, delta_dicts = generate_model_variations(self.default_morphology, self.variation_params, num)
+			model_files.extend(variation_xml_paths)
+			variation_delta_dicts = delta_dicts
+
+		return (model_files, variation_delta_dicts)
+
 	def run_optimization(self, logging=False):
 		es = cma.CMAEvolutionStrategy(self.normalize_initial_values(), self.variances,
 			{'popsize': 25, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
@@ -99,8 +118,11 @@ class Experiment:
 
 		while not es.stop():
 			solutions = es.ask()
-			variation_indices = [int(random.uniform(0, len(self.model_files))) for _ in range(len(solutions))]
-			model_files = [self.model_files[i] for i in variation_indices]
+
+			solution_variations = [self.sample_variations(5) for _ in range(len(solutions))]
+
+			# variation_indices = [int(random.uniform(0, len(self.model_files))) for _ in range(len(solutions))]
+			# model_files = [self.model_files[i] for i in variation_indices]
 			
 			if self.perturbation_params:
 				solution_perturbations = []
@@ -118,20 +140,44 @@ class Experiment:
 			# print("New solutions #" + str(iteration))
 			printProgressBar(iteration, self.max_iters-1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
-			x = [{'model_file': model_file, 'closed_loop': self.closed_loop, 'params': self.denormalize(x), 'render': False, 'logging': logging, 'perturbations': p} for x, model_file, p in zip(solutions, model_files, solution_perturbations)]
-			results = mp_pool.map(eval_wrapper, x) 
+			x = [{
+				'model_files': variations[0],
+				'closed_loop': self.closed_loop,
+				'params': self.denormalize(x),
+				'render': False,
+				'logging': logging,
+				'perturbations': p} for x, variations, p in zip(solutions, solution_variations, solution_perturbations)]
+			results = mp_pool.map(eval_wrapper, x)
+
+			# Clean temp files
+			for var in solution_variations:
+				for f in var[0]:
+					os.remove(f)
 
 			rewards = []
 			max_reward = 0
 			avg_reward = 0
-			for result, solution, variation_index, perturbation in zip(results, solutions, variation_indices, solution_perturbations):
-				succes, simulated_time, distance, energy_consumed, action_history, sensor_history = result
-	
-				# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
-				reward = 0 if distance < 0 or not succes else (10-0.01*(energy_consumed-self.E0)**2)*(distance)
+			for result, solution, variations, perturbation in zip(results, solutions, solution_variations, solution_perturbations):
+				solution_rewards = []
+
+				simulated_time, distance, energy_consumed, action_history, sensor_history = [], [], [], [], []
+
+				for r in result:
+					succes, st, d, ec, ah, sh = r
+					simulated_time.append(st)
+					distance.append(d)
+					energy_consumed.append(ec)
+					action_history.append(ah)
+					sensor_history.append(sh)
+					self.total_simulated_time += st
+					# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
+					reward = 0 if d < 0 or not succes else (10-0.01*(ec-self.E0)**2)*(d)
+					solution_rewards.append(reward)
+
+				reward = sum(solution_rewards) / len(solution_rewards)
 
 				rewards.append(reward*-1) # May need to be a numpy.ndarray
-				self.total_simulated_time += simulated_time
+				
 				avg_reward += reward
 				simulation_dict = {'iter': iteration,
 									'cpg_params': self.denormalize(solution).tolist(),
@@ -141,7 +187,7 @@ class Experiment:
 									'action_history': action_history,
 									'sensor_history': sensor_history,
 									'reward': reward,
-									'variation_index': variation_index,
+									# 'variation_index': variation_index,
 									'perturbation': perturbation,
 								}
 				self.simulations.append(simulation_dict)
