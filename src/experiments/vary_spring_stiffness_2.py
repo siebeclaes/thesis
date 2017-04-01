@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 from pymongo import MongoClient
-import matplotlib.pyplot as plt
 import feedback_cpg as sim
 from model_variations import generate_temp_model_file, generate_model_variations
 import multiprocessing
@@ -210,6 +209,7 @@ def test_results():
 
 
 def view_results():
+	import matplotlib.pyplot as plt
 	print('Showing results...')
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
