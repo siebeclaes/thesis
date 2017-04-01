@@ -1,7 +1,8 @@
 from lxml import etree
 import math
 
-VERSION = 1
+#In version 2 added limit to knee joint angles
+VERSION = 2
 
 # MODEL PARAMETERS
 model_config = {
@@ -201,7 +202,7 @@ class Leg(object):
 
 		tibia = etree.Element('body')
 		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text())
-		tibia_joint = etree.Element('joint', limited='false', range='0 20', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
+		tibia_joint = etree.Element('joint', limited='true', range='-60 0', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
 		tibia_site = etree.Element('site', name='s'+str(self.leg_id)+'_2', pos=self.tibia_attachment.get_rescaled_text())
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
@@ -328,8 +329,11 @@ def generate_xml_model(output_file, config=None):
 
 	root.append(generate_sensors())
 
-	with open(output_file, 'w') as f:
-		f.write(etree.tostring(root, pretty_print=True).decode('utf-8'))
+	# with open(output_file, 'w') as f:
+	f = open(output_file, 'w')
+	f.write(etree.tostring(root, pretty_print=True).decode('utf-8'))
+	f.flush()
+	f.close()
 
 def get_model_generator_version():
 	return VERSION
