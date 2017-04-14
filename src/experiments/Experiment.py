@@ -119,7 +119,7 @@ class Experiment:
 		while not es.stop():
 			solutions = es.ask()
 
-			solution_variations = [self.sample_variations(5) for _ in range(len(solutions))]
+			solution_variations = [self.sample_variations(self.num_variations) for _ in range(len(solutions))]
 
 			# variation_indices = [int(random.uniform(0, len(self.model_files))) for _ in range(len(solutions))]
 			# model_files = [self.model_files[i] for i in variation_indices]
