@@ -177,6 +177,8 @@ class Experiment:
 				reward = sum(solution_rewards) / len(solution_rewards)
 
 				rewards.append(reward*-1) # May need to be a numpy.ndarray
+
+				variations_delta_dicts = [v[1] for v in variations]
 				
 				avg_reward += reward
 				simulation_dict = {'iter': iteration,
@@ -189,6 +191,7 @@ class Experiment:
 									'reward': reward,
 									# 'variation_index': variation_index,
 									'perturbation': perturbation,
+									'variations': variations_delta_dicts,
 								}
 				self.simulations.append(simulation_dict)
 
