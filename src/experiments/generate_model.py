@@ -206,7 +206,7 @@ class Leg(object):
 		tibia_site = etree.Element('site', name='s'+str(self.leg_id)+'_2', pos=self.tibia_attachment.get_rescaled_text())
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
-		foot_geom = etree.Element('geom', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
+		foot_geom = etree.Element('geom', friction='10 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
 		foot_site = etree.Element('site', name='sensor_'+str(self.leg_id), pos=self.tibia_foot.get_rescaled_text())
 
 		foot.extend([foot_geom, foot_site])
