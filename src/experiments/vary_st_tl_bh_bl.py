@@ -164,7 +164,7 @@ def eval_wrapper(variables):
 	return sim.evaluate(model_file, closed_loop, params, perturbations, render, logging)
 
 def test_experiment(experiment):
-	num_variations = 30
+	num_variations = 8
 	default_morphology = experiment['default_morphology']
 	variation_params = experiment['variation_params']
 	model_files, delta_dicts = generate_model_variations(default_morphology, variation_params, num_variations)
@@ -195,18 +195,34 @@ def test_results():
 	indices, mins, avgs, maxs, stds = [], [], [], [], []
 
 	for doc in get_experiments():
+		print(doc['experiment_tag_index'])
 		rewards = test_experiment(doc)
-		indices.append(np.sqrt(doc['experiment_tag_index']))
+		indices.append(doc['experiment_tag_index'])
 		# mins.append(min(rewards))
 		avgs.append(sum(rewards)/len(rewards))
 		# maxs.append(max(rewards))
 		stds.append(np.std(rewards))
 
-	plt.figure()
-	plt.errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
-	plt.xlabel('Number of variations in training sample')
-	plt.ylabel('Reward')
-	plt.legend()
+	sorted_results = sorted(zip(indices, avgs, stds), key=lambda x: x[0])
+	indices, avgs, stds = [[x[i] for x in sorted_results] for i in range(3)]
+
+	# plt.figure()
+	# plt.errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
+	# plt.xlabel('Number of variations in training sample')
+	# plt.ylabel('Reward')
+	# plt.legend()
+
+	f, axarr = plt.subplots(2, sharex=True)
+	# axarr[0].plot(indices, mins, color='green', label='Minimum')
+	axarr[0].errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
+	# axarr[0].plot(indices, maxs, color='red', label='Maximum')
+	axarr[0].set_xlabel('Number of variations in training sample')
+	axarr[0].set_ylabel('Reward')
+	axarr[0].legend()
+
+	axarr[1].plot(indices, stds, color='red', label='Standard deviation')
+	axarr[0].set_xlabel('Number of variations in training sample')
+	axarr[1].set_ylabel('Std deviation')
 
 	plt.show()
 

@@ -194,17 +194,11 @@ def test_results():
 		# maxs.append(max(rewards))
 		stds.append(np.std(rewards))
 
-	f, axarr = plt.subplots(2, sharex=True)
-	# axarr[0].plot(indices, mins, color='green', label='Minimum')
-	axarr[0].plot(indices, avgs, color='blue', label='Average')
-	# axarr[0].plot(indices, maxs, color='red', label='Maximum')
-	axarr[0].set_xlabel('Tibia length standard deviation')
-	axarr[0].set_ylabel('Reward')
-	axarr[0].legend()
-
-	axarr[1].plot(indices, stds, color='yellow', label='Standard deviation')
-	axarr[0].set_xlabel('Tibia length standard deviation')
-	axarr[1].set_ylabel('Std deviation')
+	plt.figure()
+	plt.errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
+	plt.xlabel('Tibia length standard deviation')
+	plt.ylabel('Reward')
+	plt.legend()
 
 	plt.show()
 
