@@ -27,7 +27,7 @@ def eval_wrapper(variables):
 	return results
 
 class Experiment:
-	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0):
+	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0, remarks=''):
 		self.default_morphology = default_morphology
 		self.closed_loop = closed_loop
 		self.initial_values = initial_values
@@ -42,6 +42,7 @@ class Experiment:
 		self.variation_delta_dicts = []
 		self.experiment_tag = experiment_tag
 		self.experiment_tag_index = experiment_tag_index
+		self.remarks = remarks
 
 		self.type = "closed" if self.closed_loop else "open"
 
@@ -237,7 +238,7 @@ class Experiment:
 		doc['E0'] = self.E0
 		doc['experiment_tag'] = self.experiment_tag
 		doc['experiment_tag_index'] = self.experiment_tag_index
-		doc['remarks'] = 'Reward function: 0 if distance < 0 or not succes else (10-0.01*(energy-15)**2)*(distance) perturbations'
+		doc['remarks'] = self.remarks,
 		doc['default_morphology'] = self.default_morphology
 		doc['optimization'] = 	{'type': 'CMA',
 									 'params': {
@@ -407,6 +408,8 @@ if __name__ == '__main__':
 
 	initial = [25, 25, 25, 25, 0, 0, 0.6, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 150, 30, variation_params=variation_params_spring, num_variations=1, perturbation_params=None)
+	remark = 'tanh reward function E_ref = 30'
+
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 150, E0=30, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
 	e.run()
 
