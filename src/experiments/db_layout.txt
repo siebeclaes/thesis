@@ -1,0 +1,29 @@
+Experiment
+
+	-type = open/closed
+	-timestamp
+	-generate_model_version = version number of simulation model generator
+	-cpg_version = version number of CPG generator
+	-default_morphology = config dict with default params for generate_model.py
+	-morphology_changes = list of config dicts which specify the delta that needs to be added to the default morphology
+	-optimization = 
+		- type = CMA/...
+		- params = 
+			- initial_values
+			- lower_bounds
+			- upper_bounds
+			- variances
+			- max_iters
+	-results = 
+		- best_id
+		- total_simulated_time
+		- total_computation_time
+		- score_evolution = list of average result in each iteration
+		- simulations = indexed list of all simulations in this experiment
+			- iter = iteration in which this simulation has been performed
+			- cpg_params
+			- simulated_time
+			- distance
+			- energy
+			- action_history
+			- sensor_history
