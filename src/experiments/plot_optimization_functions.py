@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import random
 
 def fun(distance, energy):
-  return 0 if distance < 0 else (10-0.01*(energy-30)**2)*(distance)
+  # return 0 if distance < 0 else (10-0.01*(energy-30)**2)*(distance)
+  return 0 if distance < 0 else (distance * np.tanh(60/energy))
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
