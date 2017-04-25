@@ -171,8 +171,7 @@ class Experiment:
 					action_history.append(ah)
 					sensor_history.append(sh)
 					self.total_simulated_time += st
-					# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
-					reward = 0 if d < 0 or not succes else (10-0.01*(ec-self.E0)**2)*(d)
+					reward = 0 if d < 0 or not succes else (d * np.tanh(self.E0/ec))
 					solution_rewards.append(reward)
 
 				reward = sum(solution_rewards) / len(solution_rewards)
