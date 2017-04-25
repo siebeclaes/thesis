@@ -16,7 +16,7 @@ from matplotlib.figure import Figure
 from pymongo import MongoClient
 
 from operator import itemgetter
-from model_variations import generate_temp_model_file, dict_elementwise_operator
+from model_variations import generate_temp_model_file, dict_elementwise_operator, generate_model_variations
 
 progname = os.path.basename(sys.argv[0])
 progversion = "0.1"
@@ -73,7 +73,7 @@ class SimulationView(QtWidgets.QVBoxLayout):
 
         self.show_simulation_info()
 
-        if len(self.simulation['action_history']) == 0:
+        if len(self.simulation['action_history']) == 0 or len(self.simulation['action_history'][0]) == 0:
             # Not simulated with debug yet
             label = QtWidgets.QLabel('No action or sensor history yet')
             self.addWidget(label)
@@ -85,6 +85,16 @@ class SimulationView(QtWidgets.QVBoxLayout):
             run_simulation = QtWidgets.QPushButton('View simulation')
             run_simulation.clicked.connect(self.view_simulation)
             self.addWidget(run_simulation)
+
+            filename_layout = QtWidgets.QHBoxLayout()
+            self.cpg_params_filename = QtWidgets.QLineEdit()
+            filename_layout.addWidget(self.cpg_params_filename)
+
+            dump_params = QtWidgets.QPushButton('Dump cpg params to file')
+            dump_params.clicked.connect(self.dump_params)
+            filename_layout.addWidget(dump_params)
+
+            self.addLayout(filename_layout)
         else:
             self.show_plots()
 
@@ -92,11 +102,11 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(self.add_cpg_params())
 
-        distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
-        layout.addWidget(distance)
+        # distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
+        # layout.addWidget(distance)
         
-        energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
-        layout.addWidget(energy)
+        # energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
+        # layout.addWidget(energy)
 
         if 'perturbation' in self.simulation:
             num_perturbations = QtWidgets.QLabel('num_perturbations: ' + str(len(self.simulation['perturbation'])))
@@ -113,6 +123,15 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[7], params[5], params[9]))
 
         return layout
+
+    def dump_params(self):
+        import pickle
+        params = self.simulation['cpg_params']
+
+        filename = self.cpg_params_filename.text()
+
+        with open('../tigrillo/' + str(filename) + '.pickle', 'wb') as f:
+            pickle.dump(params, f, 2)
 
     def leg_cpg_param_layout(self, text, mu, omega, offset, d):
         layout = QtWidgets.QVBoxLayout()
@@ -172,6 +191,9 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.model_file=None
         if not self.experiment['default_morphology']:
             self.model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
+        elif self.experiment['variation_params']:
+            model_files, _ = generate_model_variations(self.experiment['default_morphology'], self.experiment['variation_params'], num=1)
+            self.model_file = model_files[0]
         elif not self.experiment['delta_dicts']:
             self.model_file = generate_temp_model_file(self.experiment['default_morphology'])
         elif not self.model_file:
@@ -207,6 +229,9 @@ class ExperimentView(QtWidgets.QHBoxLayout):
         experiment_details = QtWidgets.QVBoxLayout()
         self.best_score_label = QtWidgets.QLabel('None')
         experiment_details.addWidget(self.best_score_label)
+
+        self.num_variations_label = QtWidgets.QLabel('Num variations: ')
+        experiment_details.addWidget(self.num_variations_label)
 
         self.score_evolution_plot = MyMplCanvas()
         experiment_details.addWidget(self.score_evolution_plot)
@@ -301,9 +326,21 @@ class ExperimentView(QtWidgets.QHBoxLayout):
 
         self.simulation_list_widget.clear()
 
+        if 'experiment_tag' in experiment:
+            # self.best_score_label.setText(str(experiment['experiment_tag']) + ' - ' + str(experiment['experiment_tag_index']))
+            pass
+
         self.best_score_label.setText(str(experiment['remarks']))
 
+        try:
+            num_variations = len(experiment['results']['simulations'][0]['distance'])
+        except:
+            num_variations = 1
+
+        self.num_variations_label.setText('Num variations: ' + str(num_variations))
+
         simulation_list = experiment['results']['simulations']
+
         # sort this list in descending order according to reward
         self.simulation_list = sorted(enumerate(simulation_list), key=lambda x: x[1]['reward'], reverse=True)
 

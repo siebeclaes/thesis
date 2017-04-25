@@ -178,7 +178,7 @@ class Experiment:
 
 				rewards.append(reward*-1) # May need to be a numpy.ndarray
 
-				variations_delta_dicts = [v[1] for v in variations]
+				# variations_delta_dicts = [v[1] for v in variations]
 				
 				avg_reward += reward
 				simulation_dict = {'iter': iteration,
@@ -191,7 +191,7 @@ class Experiment:
 									'reward': reward,
 									# 'variation_index': variation_index,
 									'perturbation': perturbation,
-									'variations': variations_delta_dicts,
+									# 'variations': variations_delta_dicts,
 								}
 				self.simulations.append(simulation_dict)
 
@@ -386,16 +386,16 @@ if __name__ == '__main__':
 
 	variation_params_spring = {'legs': {
 			'FL': {
-				'spring_stiffness': {'normal': [0, 40]},
+				'spring_stiffness': {'normal': [0, 20]},
 			},
 			'FR': {
-				'spring_stiffness': {'normal': [0, 40]},
+				'spring_stiffness': {'normal': [0, 20]},
 			},
 			'BL': {
-				'spring_stiffness': {'normal': [0, 40]},
+				'spring_stiffness': {'normal': [0, 20]},
 			},
 			'BR': {
-				'spring_stiffness': {'normal': [0, 40]},
+				'spring_stiffness': {'normal': [0, 20]},
 			},
 		},
 	}
@@ -407,6 +407,6 @@ if __name__ == '__main__':
 
 	initial = [25, 25, 25, 25, 0, 0, 0.6, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 250, 30, variation_params=None, num_variations=15, perturbation_params=perturb_params)
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 150, 30, variation_params=variation_params_spring, num_variations=1, perturbation_params=None)
 	e.run()
 

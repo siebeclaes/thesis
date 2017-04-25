@@ -156,7 +156,7 @@ def eval_wrapper(variables):
 	return sim.evaluate(model_file, closed_loop, params, perturbations, render, logging)
 
 def test_experiment(experiment):
-	num_variations = 30
+	num_variations = 40
 	default_morphology = experiment['default_morphology']
 	variation_params = experiment['variation_params']
 	model_files, delta_dicts = generate_model_variations(default_morphology, variation_params, num_variations)
@@ -171,7 +171,7 @@ def test_experiment(experiment):
 	x = [{'model_file': model_file, 'closed_loop': False, 'params': cpg_params, 'render': False, 'logging': logging, 'perturbations': p} for model_file, p in zip(model_files, solution_perturbations)]
 	results = mp_pool.map(eval_wrapper, x)
 
-	rewards = []
+	rewards, distances, energies = [], [], []
 
 	for result in results:
 		succes, simulated_time, distance, energy_consumed, action_history, sensor_history = result
@@ -179,26 +179,61 @@ def test_experiment(experiment):
 		# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
 		reward = 0 if distance < 0 or not succes else (10-0.01*(energy_consumed-experiment['E0'])**2)*(distance)
 		rewards.append(reward)
+		distances.append(distance)
+		energies.append(energy_consumed)
 
-	return rewards
+	return (rewards, distances, energies)
 
 def test_results():
 	import matplotlib.pyplot as plt
 	indices, mins, avgs, maxs, stds = [], [], [], [], []
+	avg_distance = []
+	avg_energy = []
+	stds_distance = []
+	stds_energy = []
 
 	for doc in get_experiments():
-		rewards = test_experiment(doc)
-		indices.append(np.sqrt(doc['experiment_tag_index']))
+		rewards, distances, energies = test_experiment(doc)
+		percentage = int(np.sqrt(doc['experiment_tag_index']) / 400 * 100)
+
+		indices.append(percentage)
 		# mins.append(min(rewards))
 		avgs.append(sum(rewards)/len(rewards))
+		avg_distance.append(sum(distances)/len(distances))
+		avg_energy.append(sum(energies)/len(energies))
 		# maxs.append(max(rewards))
+		# print(np.std(rewards))
 		stds.append(np.std(rewards))
+		stds_distance.append(np.std(distances))
+		stds_energy.append(np.std(energies))
 
 	plt.figure()
 	plt.errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
-	plt.xlabel('Spring stiffness standard deviation')
+	plt.ylim(ymin=0)
+	plt.xlabel('standard deviation % of mean')
 	plt.ylabel('Reward')
 	plt.legend()
+	plt.title('Varying spring stiffness standard deviation')
+
+	plt.show()
+
+	plt.figure()
+	plt.errorbar(indices, avg_distance, yerr=stds_distance, color='red', label='Average distance')
+	plt.ylim(ymin=0)
+	plt.xlabel('standard deviation % of mean')
+	plt.ylabel('Distance')
+	plt.legend()
+	plt.title('Varying spring stiffness standard deviation')
+
+	plt.show()
+
+	plt.figure()
+	plt.errorbar(indices, avg_energy, yerr=stds_energy, color='green', label='Average energy')
+	plt.ylim(ymin=0)
+	plt.xlabel('standard deviation % of mean')
+	plt.ylabel('Energy')
+	plt.legend()
+	plt.title('Varying spring stiffness standard deviation')
 
 	plt.show()
 
