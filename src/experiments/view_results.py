@@ -389,7 +389,7 @@ class ExperimentsListWidget(QtWidgets.QListWidget):
     def load_list(self):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments']
+        experiments_collection = db['experiments_2']
         for doc in experiments_collection.find({}, {"results.simulations": 0}):
             self.experiments.append(doc)
 
@@ -437,7 +437,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def experiment_selected(self, experiment_id):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments']
+        experiments_collection = db['experiments_2']
         experiment = experiments_collection.find_one({'_id': experiment_id})
         self.detail_view.update_experiment(experiment)
 

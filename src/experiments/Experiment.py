@@ -224,7 +224,7 @@ class Experiment:
 			# Save results in DB
 			client = MongoClient('localhost', 27017)
 			db = client['thesis']
-			experiments_collection = db['experiments']
+			experiments_collection = db['experiments_2']
 			insert_result = experiments_collection.insert_one(self.get_document())
 			return insert_result.inserted_id
 
