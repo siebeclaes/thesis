@@ -409,6 +409,6 @@ if __name__ == '__main__':
 
 	remark = 'tanh reward function E_ref = 30'
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 150, E0=30, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 400, E0=30, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
 	e.run()
 
