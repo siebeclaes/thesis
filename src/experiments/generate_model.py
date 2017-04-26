@@ -222,7 +222,7 @@ class Leg(object):
 		tendon.append(spatial)
 		tendons.append(tendon)
 
-		actuators.append(etree.Element('position', ctrllimited="false", ctrlrange="0 6.283185308", joint="shoulder_"+str(self.leg_id), gear="1", kp=str(self.config['actuator_kp'])))
+		actuators.append(etree.Element('position', forcelimited="true", forcerange="-50 50", joint="shoulder_"+str(self.leg_id), gear="1", kp=str(self.config['actuator_kp'])))
 		sensors.append(etree.Element('force', site='sensor_'+str(self.leg_id)))
 
 		return leg
