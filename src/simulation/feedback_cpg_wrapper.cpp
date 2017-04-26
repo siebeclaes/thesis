@@ -47,9 +47,9 @@ CpgFeedbackControl* getOpenControl(const double *x, const int N)
   vector<double> o = {x[4], x[4], x[5], x[5]};
   vector<double> omega = {x[6], x[6], x[6], x[6]};
   vector<double> d = {x[7], x[7], x[8], x[8]};
-  vector<vector<double>> coupling = {{0, x[9], x[10], x[12]}, {x[9], 0, x[11], x[13]}, {x[10], x[11], 0, x[14]}, {x[12], x[13], x[14], 0}};
+  vector<double> phase_offsets = {x[9], x[10], x[11], x[12], x[13], x[14]};
 
-  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, x[15]);
+  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, phase_offsets);
   return control;
 }
 
@@ -59,15 +59,14 @@ CpgFeedbackControl* getClosedControl(const double *x, const int N)
   vector<double> o = {x[4], x[4], x[5], x[5]};
   vector<double> omega = {x[6], x[6], x[7], x[7]};
   vector<double> d = {x[8], x[8], x[9], x[9]};
-  vector<vector<double>> coupling = {{0, x[10], x[11], x[13]}, {x[10], 0, x[12], x[14]}, {x[11], x[12], 0, x[15]}, {x[13], x[14], x[15], 0}};
-  double phase_offset = x[16];
+  vector<double> phase_offsets = {x[9], x[10], x[11], x[12], x[13], x[14]};
   vector<double> kappa_r = {x[17], x[18], x[19], x[20]};
   vector<double> kappa_phi = {x[21], x[22], x[23], x[24]};
   vector<double> kappa_o = {x[25], x[26], x[27], x[28]};
 
   const double* weights = x + 29;
 
-  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, phase_offset, kappa_r, kappa_phi, kappa_o, weights);
+  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, phase_offsets, kappa_r, kappa_phi, kappa_o, weights);
   return control;
 }
 

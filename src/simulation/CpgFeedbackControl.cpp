@@ -16,13 +16,13 @@ using namespace std;
 
 #define CPG_INIT 10000
 
-CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<vector<double>> p_coupling, double phase_offset)
+CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<double> phase_offsets)
 {
     mu = p_mu;
     o = p_o;
     omega = p_omega;
     d = p_d;
-    coupling = p_coupling;
+    coupling = {{0,1,1,1}, {1,0,1,1}, {1,1,0,1}, {1,1,1,0}};
 
     r = vector<double>(4,1);
     phi = vector<double>(4,1);
@@ -33,19 +33,26 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
 
     closed_loop = false;
 
-    psi = {{0, 0, phase_offset, phase_offset}, {0, 0, phase_offset, phase_offset}, {phase_offset, phase_offset, 0, 0}, {phase_offset, phase_offset, 0, 0}};
+    double a = phase_offsets[0];
+    double b = phase_offsets[1];
+    double c = phase_offsets[2];
+    double d = phase_offsets[3];
+    double e = phase_offsets[4];
+    double f = phase_offsets[5];
+
+    psi = {{0, a, b, c}, {-1*a, 0, d, e}, {-1*b, -1*d, 0, f}, {-1*c, -1*e, -1*f, 0}};
 
     // for (int i = 0; i < CPG_INIT; i++)
     //     step_open_loop();
 }
 
-CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<vector<double>> p_coupling, double phase_offset, vector<double> p_kappa_r, vector<double> p_kappa_phi, vector<double> p_kappa_o, const double* p_weights)
+CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<double> phase_offsets, vector<double> p_kappa_r, vector<double> p_kappa_phi, vector<double> p_kappa_o, const double* p_weights)
 {
     mu = p_mu;
     o = p_o;
     omega = p_omega;
     d = p_d;
-    coupling = p_coupling;
+    coupling = {{0,1,1,1}, {1,0,1,1}, {1,1,0,1}, {1,1,1,0}};
 
     r = vector<double>(4,1);
     phi = vector<double>(4,1);
@@ -56,7 +63,14 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
     kappa_o = p_kappa_o;
 
     closed_loop = true;
-    psi = {{0, 0, phase_offset, phase_offset}, {0, 0, phase_offset, phase_offset}, {phase_offset, phase_offset, 0, 0}, {phase_offset, phase_offset, 0, 0}};
+    double a = phase_offsets[0];
+    double b = phase_offsets[1];
+    double c = phase_offsets[2];
+    double d = phase_offsets[3];
+    double e = phase_offsets[4];
+    double f = phase_offsets[5];
+
+    psi = {{0, a, b, c}, {-1*a, 0, d, e}, {-1*b, -1*d, 0, f}, {-1*c, -1*e, -1*f, 0}};
 
     n = Network(4, 12);
     n.finalize();
