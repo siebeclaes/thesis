@@ -407,8 +407,8 @@ if __name__ == '__main__':
 
 	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
 
-	remark = 'tanh reward function E_ref = 30'
+	remark = 'tanh reward function E_ref = 60'
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 400, E0=30, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 400, E0=60, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
 	e.run()
 
