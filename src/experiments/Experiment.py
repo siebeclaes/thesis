@@ -82,13 +82,14 @@ class Experiment:
 			array[i] = var*(self.upper_bounds[i]-self.lower_bounds[i]) + self.lower_bounds[i]
 			i += 1
 
-		array[0] = array[0] * array[0]
+		# Amplitudes for CPG should be squared
+		array[0] = array[0] * array[0] 
 		array[1] = array[1] * array[1]
 		array[2] = array[2] * array[2]
 		array[3] = array[3] * array[3]
 
+		# frequency times 2 pi
 		array[6] = array[6] * 2 * np.pi
-		array[7] = array[7] * 2 * np.pi
 
 		return array
 
@@ -218,6 +219,7 @@ class Experiment:
 		res = es.result()
 
 		if iteration < 2: #restart
+			mp_pool.terminate()
 			self.init_document()
 			return self.run_optimization(logging)
 		else:
@@ -405,7 +407,7 @@ if __name__ == '__main__':
 	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0]
 	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.2, 0.2, 0, 0, 0, 0, 0, 0]
+	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0, 0, 0, 0]
 
 	remark = 'tanh reward function E_ref = 60 phase coupling'
 
