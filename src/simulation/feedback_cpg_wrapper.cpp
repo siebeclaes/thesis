@@ -45,11 +45,11 @@ CpgFeedbackControl* getOpenControl(const double *x, const int N)
 {
   vector<double> mu = vector<double>(x, x+4);
   vector<double> o = {x[4], x[4], x[5], x[5]};
-  vector<double> omega = {x[6], x[6], x[7], x[7]};
-  vector<double> d = {x[8], x[8], x[9], x[9]};
-  vector<vector<double>> coupling = {{0, x[10], x[11], x[13]}, {x[10], 0, x[12], x[14]}, {x[11], x[12], 0, x[15]}, {x[13], x[14], x[15], 0}};
+  vector<double> omega = {x[6], x[6], x[6], x[6]};
+  vector<double> d = {x[7], x[7], x[9], x[9]};
+  vector<vector<double>> coupling = {{0, x[9], x[10], x[12]}, {x[9], 0, x[11], x[13]}, {x[10], x[11], 0, x[14]}, {x[12], x[13], x[14], 0}};
 
-  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, x[16]);
+  CpgFeedbackControl* control = new CpgFeedbackControl(mu, o, omega, d, coupling, x[15]);
   return control;
 }
 
