@@ -102,11 +102,11 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(self.add_cpg_params())
 
-        # distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
-        # layout.addWidget(distance)
+        distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
+        layout.addWidget(distance)
         
-        # energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
-        # layout.addWidget(energy)
+        energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
+        layout.addWidget(energy)
 
         if 'perturbation' in self.simulation:
             num_perturbations = QtWidgets.QLabel('num_perturbations: ' + str(len(self.simulation['perturbation'])))
@@ -117,10 +117,10 @@ class SimulationView(QtWidgets.QVBoxLayout):
     def add_cpg_params(self):
         params = self.simulation['cpg_params']
         layout = QtWidgets.QHBoxLayout()
-        layout.addLayout(self.leg_cpg_param_layout('Front-left', params[0], params[6], params[4], params[8]))
-        layout.addLayout(self.leg_cpg_param_layout('Front-right', params[1], params[6], params[4], params[8]))
-        layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[7], params[5], params[9]))
-        layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[7], params[5], params[9]))
+        layout.addLayout(self.leg_cpg_param_layout('Front-left', params[0], params[6], params[4], params[7]))
+        layout.addLayout(self.leg_cpg_param_layout('Front-right', params[1], params[6], params[4], params[7]))
+        layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[6], params[5], params[8]))
+        layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[6], params[5], params[8]))
 
         return layout
 
