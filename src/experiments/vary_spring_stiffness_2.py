@@ -104,7 +104,7 @@ model_config = {
 EXPERIMENT_TAG = 'vary_spring_stiffness_2'
 NUM_OPTIMIZATION_STEPS = 250
 E_0 = 30
-NUM_VARIATIONS = 15
+NUM_VARIATIONS = 10
 
 def perform_experiment(spring_stiffness_stdev, E_ref):
 	from Experiment import Experiment
@@ -131,7 +131,7 @@ def perform_experiment(spring_stiffness_stdev, E_ref):
 
 	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E_ref, variation_params=variation_params_spring, num_variations=NUM_VARIATIONS, perturbation_params=None, experiment_tag=EXPERIMENT_TAG, experiment_tag_index=spring_stiffness_stdev, remarks=remark)
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E0=E_ref, variation_params=variation_params_spring, num_variations=NUM_VARIATIONS, perturbation_params=None, remarks=remark)
 	e.run()
 
 def run():
