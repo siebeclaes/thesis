@@ -36,9 +36,9 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
     double a = phase_offsets[0];
     double b = phase_offsets[1];
     double c = phase_offsets[2];
-    double d = phase_offsets[3];
-    double e = phase_offsets[4];
-    double f = phase_offsets[5];
+    double d = a-b;
+    double e = a-c;
+    double f = b-c;
 
     psi = {{0, a, b, c}, {-1*a, 0, d, e}, {-1*b, -1*d, 0, f}, {-1*c, -1*e, -1*f, 0}};
 

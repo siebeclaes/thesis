@@ -404,10 +404,10 @@ if __name__ == '__main__':
 
 	perturb_params = {'expected_occurences': 3, 'perturb_means': [100]*6, 'perturb_variances': [50]*6}
 
-	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0]
-	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi]
+	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0]
+	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0, 0, 0, 0]
+	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0]
 
 	remark = 'tanh reward function E_ref = 60 phase coupling'
 
