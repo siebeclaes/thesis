@@ -36,6 +36,24 @@ def moving_average(a, n=3) :
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
+class MyTable(QtWidgets.QTableWidget):
+    def __init__(self, data, *args):
+        QtWidgets.QTableWidget.__init__(self, *args)
+        self.data = data
+        self.setmydata()
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+
+    def setmydata(self):
+
+        headers = ['FL', 'FR', 'BL', 'BR']
+        for m in range(4): # iterate rows
+            for n in range(4): #iterate cols
+                newitem = QtWidgets.QTableWidgetItem(str(self.data[m][n]))
+                self.setItem(m, n, newitem)
+        self.setHorizontalHeaderLabels(headers)
+        self.setVerticalHeaderLabels(headers)
+
 class MyMplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
@@ -116,13 +134,27 @@ class SimulationView(QtWidgets.QVBoxLayout):
 
     def add_cpg_params(self):
         params = self.simulation['cpg_params']
+
+        vert_layout = QtWidgets.QVBoxLayout()
+
         layout = QtWidgets.QHBoxLayout()
         layout.addLayout(self.leg_cpg_param_layout('Front-left', params[0], params[6], params[4], params[7]))
         layout.addLayout(self.leg_cpg_param_layout('Front-right', params[1], params[6], params[4], params[7]))
         layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[6], params[5], params[8]))
         layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[6], params[5], params[8]))
 
-        return layout
+        vert_layout.addLayout(layout)
+
+        a, b, c = params[9], params[10], params[11]
+        d = a-b
+        e = a-c
+        f = b-c
+
+        data = [[0,a,b,c], [-1*a,0,d, e], [-1*b,-1*d,0, f], [-1*c,-1*e,-1*f, 0]]
+        table = MyTable(data, 4, 4)
+        vert_layout.addWidget(table)
+
+        return vert_layout
 
     def dump_params(self):
         import pickle
