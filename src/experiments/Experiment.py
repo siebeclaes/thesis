@@ -301,7 +301,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'FR': {
@@ -322,7 +322,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'BL': {
@@ -343,7 +343,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'BR': {
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 		},
