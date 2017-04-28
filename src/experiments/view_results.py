@@ -196,8 +196,10 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.sensor_history_plot = MyMplCanvas()
         self.addWidget(self.sensor_history_plot)
 
-        action_history = self.simulation['action_history']
-        sensor_history = self.simulation['sensor_history']
+        print(len(self.simulation['sensor_history']))
+
+        action_history = [x[:500] for x in self.simulation['action_history']]
+        sensor_history = [x[:500] for x in self.simulation['sensor_history']]
 
         for i in range(len(sensor_history)):
             sensor_history[i] = moving_average(sensor_history[i], 15)
@@ -211,8 +213,8 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.action_history_plot.draw()
 
         self.sensor_history_plot.axes.cla()
-        # self.sensor_history_plot.axes.plot(sensor_history[0], color='blue', label='FL')
-        # self.sensor_history_plot.axes.plot(sensor_history[1], color='red', label='FR')
+        self.sensor_history_plot.axes.plot(sensor_history[0], color='blue', label='FL')
+        self.sensor_history_plot.axes.plot(sensor_history[1], color='red', label='FR')
         self.sensor_history_plot.axes.plot(sensor_history[2], color='green', label='BL')
         self.sensor_history_plot.axes.plot(sensor_history[3], color='yellow', label='BR')
         self.sensor_history_plot.axes.legend()
