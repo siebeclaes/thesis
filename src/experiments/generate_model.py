@@ -1,5 +1,6 @@
 from lxml import etree
 import math
+import numpy as np
 
 #In version 2 added limit to knee joint angles
 VERSION = 2
@@ -116,6 +117,9 @@ class Point(object):
 		self.y = self.y + y_offset
 		self.z = self.z + z_offset
 
+	def distance_to(self, point):
+		return np.sqrt((self.x - point.x)**2 + (self.y - point.y)**2 + (self.z - point.z)**2)
+
 	def rotate_in_yz(self, angle):
 		self.z, self.y = self.y*math.cos(angle) - self.z*math.sin(angle), self.y*math.sin(angle) + self.z*math.cos(angle)
 
@@ -213,8 +217,11 @@ class Leg(object):
 		tibia.extend([tibia_geom, tibia_joint, tibia_site, foot])
 		leg.extend([femur_geom, femur_joint, femur_site, tibia])
 
+		tendon_min = self.femur_attachment.distance_to(self.tibia_attachment) / 10
+		tendon_max = tendon_min*10
+
 		tendon = etree.Element('tendon')
-		spatial = etree.Element('spatial', stiffness=str(self.config['spring_stiffness']))
+		spatial = etree.Element('spatial', stiffness=str(self.config['spring_stiffness']), range="{0:.5f} {1:.5f}".format(tendon_min, tendon_max))
 		site1 = etree.Element('site', site='s'+str(self.leg_id)+'_1')
 		site2 = etree.Element('site', site='s'+str(self.leg_id)+'_2')
 
@@ -236,7 +243,7 @@ def generate_xml_defaults():
 	geom = etree.Element('geom', rgba=".9 .7 .1 1", size="0.05", density="1")
 	site = etree.Element('site', type="sphere", rgba=".9 .9 .9 1", size="0.005")
 	joint = etree.Element('joint', type="hinge", axis="1 0 0", limited="true", range="-100 100", solimplimit="0.95 0.95 0.1")
-	tendon = etree.Element('tendon', width="0.02", rgba=".95 .3 .3 1", limited="false", range="0.25 1",  stiffness="4000")
+	tendon = etree.Element('tendon', width="0.02", rgba=".95 .3 .3 1", limited="true", range="0.25 1",  stiffness="4000")
 
 	default.extend([geom, site, joint, tendon])
 
