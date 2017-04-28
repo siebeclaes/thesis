@@ -797,9 +797,10 @@ def loadCpgParams(x):
     cpg = CPGControl(mu, o, omega, d, coupling, phase_offset)
     return cpg
 
-actions = loadControlSignalFromFile(control_file_name + '.pickle')
+if RUN:
+    actions = loadControlSignalFromFile(control_file_name + '.pickle')
 
-print 'Loaded actions, start running'
+    print 'Loaded actions, start running'
     
 init()
 
@@ -870,6 +871,16 @@ try:
             tlf = CONTROLLOOPDELAY - (time.time() - t0)
             if tlf > 0:
                 time.sleep(tlf) 
+    else:
+        doForAll(setJointMode)
+        doForAll(setMovingSpeed, 0) # Max speed
+        while(1):
+            t0 = time.time()
+            updateServos(0,0,0,0)
+            tlf = CONTROLLOOPDELAY - (time.time() - t0)
+            if tlf > 0:
+                time.sleep(tlf)
+
 except:
     for i in IDS:
         setTorqueEnable(i, 0)
