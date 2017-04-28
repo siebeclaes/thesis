@@ -44,6 +44,8 @@ if len(sys.argv) >= 2 and str(sys.argv[1]) == "run":
     # print sys.argv, len(sys.argv)
     if len(sys.argv) >= 3 and sys.argv[2].isdigit() == True: # 0042 for example
         CONFIGNo = int(sys.argv[2])
+    elif len(sys.argv) == 3:
+        control_file_name = sys.argv[2]
     else:
         logfile_path = "LogFiles/*.csv"
         file_list = glob.glob(logfile_path)
@@ -795,7 +797,7 @@ def loadCpgParams(x):
     cpg = CPGControl(mu, o, omega, d, coupling, phase_offset)
     return cpg
 
-actions = loadControlSignalFromFile('2_variations_control_signal.pickle')
+actions = loadControlSignalFromFile(control_file_name + '.pickle')
 
 print 'Loaded actions, start running'
     

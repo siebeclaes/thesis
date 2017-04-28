@@ -11,20 +11,25 @@ skip_frames = 5
 
 
 class CPGControl:
-	def __init__(self, mu, offset, omega, d, coupling, phase_offset):
+	def __init__(self, mu, offset, omega, d, phase_offset):
 		self.mu = mu
 		self.o = offset
 		self.omega = omega
 		self.d = d
-		self.coupling = coupling
+		self.coupling = [[0,1,1,1], [1,0,1,1], [1,1,0,1], [1,1,1,0]]
 
 		self.closed_loop = False
 
+		a, b, c = phase_offset[0], phase_offset[1], phase_offset[2]
+		d = a-b
+		e = a-c
+		f = b-c
+
 		self.psi = [ # Bound gait
-			[0, 0, phase_offset, phase_offset],
-			[0, 0, phase_offset, phase_offset],
-			[phase_offset, phase_offset, 0, 0],
-			[phase_offset, phase_offset, 0, 0],
+			[0, a, b, c],
+			[-1*a, 0, d, e],
+			[-1*b, -1*d, 0, f],
+			[-1*c, -1*e, -1*f, 0],
 		]
 
 		self.gamma = 5
@@ -107,24 +112,25 @@ def loadCpgParams(x):
 
     mu = [x[0], x[1], x[2], x[3]]
     o = [x[4], x[4], x[5], x[5]]
-    omega = [x[6], x[6], x[7], x[7]]
-    d = [x[8], x[8], x[9], x[9]]
-    coupling = [[0, x[10], x[11], x[13]], [x[10], 0, x[12], x[14]], [x[11], x[12], 0, x[15]], [x[13], x[14], x[15], 0]]
-    phase_offset = x[16]
+    omega = [x[6], x[6], x[6], x[6]]
+    d = [x[7], x[7], x[8], x[8]]
+    phase_offset = [x[9], x[10], x[11]]
 
-    cpg = CPGControl(mu, o, omega, d, coupling, phase_offset)
+    cpg = CPGControl(mu, o, omega, d, phase_offset)
     return cpg
 
 if __name__ == '__main__':
+	file = 'E_ref_60_10_variations_stdev_20'
+
 	# cpg = loadCpgParamsFromFile('5_variations_E0_20.pickle')
-	cpg = loadCpgParamsFromFile('2_variations.pickle')
+	cpg = loadCpgParamsFromFile(file + '.pickle')
 
 	actions = []
 	for time in range(1500):
 		action = cpg.get_action(time/100.0)
 		actions.append(action)
 
-	with open('2_variations_control_signal.pickle', 'wb') as f:
+	with open(file + '_control_signal.pickle', 'wb') as f:
 		import pickle
 		pickle.dump(actions, f, 2)
 
