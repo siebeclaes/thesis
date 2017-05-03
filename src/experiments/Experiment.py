@@ -85,6 +85,10 @@ class Experiment:
 		# Amplitudes for CPG should be squared
 		array[0] = array[0] * array[0] 
 		array[1] = array[1] * array[1]
+
+		array[2] = array[2] - array[5]
+		array[3] = array[3] - array[5]
+
 		array[2] = array[2] * array[2]
 		array[3] = array[3] * array[3]
 
@@ -404,13 +408,13 @@ if __name__ == '__main__':
 
 	perturb_params = {'expected_occurences': 3, 'perturb_means': [100]*6, 'perturb_variances': [50]*6}
 
-	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0]
-	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi]
+	lb = [30, 30, 0, 0, -30, -40, 0.5, 0.1, 0.1, 0, 0, 0]
+	ub = [60, 60, 20, 20, 30, 0, 5, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0]
+	initial = [35, 35, 10, 10, 0, -20, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	remark = 'tanh reward function E_ref = 60 phase coupling'
+	remark = 'tanh reward function E_ref = 50 max swing hind legs +20 degrees'
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 400, E0=60, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=50, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
 	e.run()
 
