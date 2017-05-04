@@ -101,7 +101,7 @@ model_config = {
 	},
 }
 
-EXPERIMENT_TAG = 'vary_spring_stiffness_2'
+EXPERIMENT_TAG = 'vary_energy_ref_3'
 NUM_OPTIMIZATION_STEPS = 250
 E_0 = 30
 NUM_VARIATIONS = 15
@@ -109,17 +109,17 @@ NUM_VARIATIONS = 15
 def perform_experiment(E_ref):
 	from Experiment import Experiment
 
-	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0]
-	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi]
+	lb = [30, 30, 0, 0, -30, -30, 0.5, 0.1, 0.1, 0, 0, 0]
+	ub = [60, 60, 40, 40, 30, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0]
+	initial = [35, 35, 30, 30, 0, 5, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 400, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='E_ref = ' + str(E_ref))
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='3 E_ref = ' + str(E_ref))
 	e.run()
 
 def run():
 	# variances = [40, 60, 80, 100, 120, 140, 160]
-	variances = [20, 30, 40, 50, 60]
+	variances = [10, 20, 30, 40, 50, 60]
 
 	for variance in variances:
 		perform_experiment(variance)
