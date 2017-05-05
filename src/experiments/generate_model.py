@@ -138,7 +138,7 @@ class MotorLeg(object):
 		width, length, height = self.config['motor']['width'], self.config['motor']['length'], self.config['motor']['height'] 
 		
 		leg_height = self.leg.get_height()
-		leg_xml = self.leg.generate_xml_leg((-1)**((self.leg_id-1)%2) * (torso_width + 0.5), y, z - self.config['motor']['leg_attachment_height'])
+		leg_xml = self.leg.generate_xml_leg((-1)**((self.leg_id-1)%2) * (torso_width + 0.51), y, z - self.config['motor']['leg_attachment_height'])
 
 		motor = etree.Element('body')
 		motor_geom = etree.Element('geom', type="box", mass="0.067", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**((self.leg_id-1)%2) * (torso_width - width/2) / model_scale, y / model_scale, (z-height/2) / model_scale))
@@ -155,13 +155,14 @@ class Leg(object):
 	def __init__(self, leg_id, config):
 		self.leg_id = leg_id
 		self.config = config
+		self.tibia_x_offset = 1.05*(-1)**(self.leg_id-1)
 		self.calc_morphology()
 
 	def calc_tibia_spring_attachment(self):
 		tibia_y = (self.config['femur_spring_tibia_joint_dst']**2 + self.config['spring_length']**2 - self.config['tibia_spring_to_joint_dst']**2) / (2 * self.config['femur_spring_tibia_joint_dst'])
 		tibia_z = -1.0 * math.sqrt(self.config['spring_length']**2 - tibia_y**2)
 
-		tibia_point = Point(0, tibia_y, tibia_z)
+		tibia_point = Point(self.tibia_x_offset, tibia_y, tibia_z)
 		femur_point = Point(0, self.config['femur_length'] - self.config['femur_spring_tibia_joint_dst'], 0)
 		tibia_point.offset_by(0, self.config['femur_length'] - self.config['femur_spring_tibia_joint_dst'], 0)
 
@@ -185,8 +186,8 @@ class Leg(object):
 		tibia_foot_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
 		tibia_foot_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
 
-		self.tibia_foot = Point(0, tibia_foot_y, tibia_foot_z)
-		self.tibia_foot2 = Point(0, tibia_foot_y-0.2, tibia_foot_z-0.4)
+		self.tibia_foot = Point(self.tibia_x_offset, tibia_foot_y, tibia_foot_z)
+		self.tibia_foot2 = Point(self.tibia_x_offset, tibia_foot_y-0.2, tibia_foot_z-0.4)
 
 	def offset_by(self, x, y, z):
 		self.femur_joint.offset_by(x, y, z)
