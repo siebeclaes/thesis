@@ -22,12 +22,12 @@ private:
 
 	bool closed_loop;
 	double prev_time = -1;
-	double dt = 0.0001;
+	double dt = 0.001;
 
 	Network n;
 
 	// CPG parameters
-	double gamma = 5;			// Speed of convergence
+	double gamma = 0.1;			// Speed of convergence
 	vector<double> mu; 			// Vector of amplitudes
 	vector<double> omega;		// Vector of target frequencies
 	vector<double> d;			// Vector of duty factor (stance duration / swing duration)
