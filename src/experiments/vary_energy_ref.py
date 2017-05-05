@@ -101,7 +101,7 @@ model_config = {
 	},
 }
 
-EXPERIMENT_TAG = 'vary_energy_ref_3'
+EXPERIMENT_TAG = 'vary_energy_ref_4'
 NUM_OPTIMIZATION_STEPS = 250
 E_0 = 30
 NUM_VARIATIONS = 15
@@ -109,12 +109,12 @@ NUM_VARIATIONS = 15
 def perform_experiment(E_ref):
 	from Experiment import Experiment
 
-	lb = [30, 30, 0, 0, -30, -30, 0.5, 0.1, 0.1, 0, 0, 0]
-	ub = [60, 60, 40, 40, 30, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
+	lb = [10, 10, 20, 20, -30, -30, 0.5, 0.1, 0.1, 0, 0, 0]
+	ub = [40, 40, 40, 40, 5, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
 
 	initial = [35, 35, 30, 30, 0, 5, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='3 E_ref = ' + str(E_ref))
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='4 E_ref = ' + str(E_ref))
 	e.run()
 
 def run():

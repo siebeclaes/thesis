@@ -82,12 +82,15 @@ class Experiment:
 			array[i] = var*(self.upper_bounds[i]-self.lower_bounds[i]) + self.lower_bounds[i]
 			i += 1
 
+
+		array[0] = array[0] - array[4]
+		array[1] = array[1] - array[4]
+		array[2] = array[2] - array[5]
+		array[3] = array[3] - array[5]
+
 		# Amplitudes for CPG should be squared
 		array[0] = array[0] * array[0] 
 		array[1] = array[1] * array[1]
-
-		array[2] = array[2] - array[5]
-		array[3] = array[3] - array[5]
 
 		array[2] = array[2] * array[2]
 		array[3] = array[3] * array[3]
