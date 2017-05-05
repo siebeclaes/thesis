@@ -218,15 +218,34 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 	for (int i = 0; i < mSkipFrames; i++)
 		mj_step(m, d);
 
-    // Update consumed energy
-    for (int i = 0; i < 4; i++)
+    // Update consumed energy after initialization phase
+    if (d->time > 5)
     {
-        double current_shoulder_qpos = d->qpos[shoulder_qpos_indices[i]];
-        double theta = mju_abs(current_shoulder_qpos - prev_shoulder_qpos[i]);
-        prev_shoulder_qpos[i] = current_shoulder_qpos;
+        for (int i = 0; i < 4; i++)
+        {
+            double current_shoulder_qpos = d->qpos[shoulder_qpos_indices[i]];
+            double theta = mju_abs(current_shoulder_qpos - prev_shoulder_qpos[i]);
+            prev_shoulder_qpos[i] = current_shoulder_qpos;
 
-        // Scale torques by scaling_factor ^ 2
-        energy += mju_abs(d->actuator_force[i] / 100 * theta);
+            // Scale torques by scaling_factor ^ 2
+            energy += mju_abs(d->actuator_force[i] / 100 * theta);
+        } 
+    }
+    
+
+    // Get position samples to compensate direction after initialization phase
+    if (!pos_sample_1_done && d->time > 8)
+    {
+        pos_sample_1_x = d->qpos[freeJointAddress];
+        pos_sample_1_y = d->qpos[freeJointAddress + 1];
+        pos_sample_1_done = true;
+    }
+
+    if (!pos_sample_2_done && d->time > 9)
+    {
+        pos_sample_2_x = d->qpos[freeJointAddress];
+        pos_sample_2_y = d->qpos[freeJointAddress + 1];
+        pos_sample_2_done = true;
     }
 
     // Check for warnings (they indicate numerical instabilities)
@@ -298,13 +317,16 @@ double QuadrupedEnv::getTime()
 
 double QuadrupedEnv::getDistance()
 {
-    double x = d->qpos[freeJointAddress];
-    double y = d->qpos[freeJointAddress + 1];
+    double current_x = d->qpos[freeJointAddress];
+    double current_y = d->qpos[freeJointAddress + 1];
 
-    // double dx = initialX - x;
-    double dy = initialY - y;
+    double alpha = mju_atan2(pos_sample_2_x - pos_sample_1_x, pos_sample_2_y - pos_sample_1_y);
+    double end_y_rotated = mju_cos(alpha) * current_y - mju_sin(alpha) * current_x;
+    double start_y_rotated = mju_cos(alpha) * pos_sample_2_y - mju_sin(alpha) * pos_sample_2_x;
 
-    return dy / 10;
+    double dy = end_y_rotated - start_y_rotated;
+
+    return mju_abs(dy / 10);
 }
 
 double QuadrupedEnv::getEnergyConsumed()
