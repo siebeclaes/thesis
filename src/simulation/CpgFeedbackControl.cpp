@@ -22,11 +22,11 @@ CpgFeedbackControl::CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, 
     o = p_o;
     omega = p_omega;
     d = p_d;
-    // coupling = {{0,1,1,1}, {1,0,1,1}, {1,1,0,1}, {1,1,1,0}};
-    coupling = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
+    coupling = {{0,5,5,5}, {5,0,5,5}, {5,5,0,5}, {5,5,5,0}};
+    // coupling = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
 
     r = vector<double>(4,1);
-    phi = {0, phase_offsets[0], phase_offsets[1], phase_offsets[2]};
+    phi = {PI*p_d[0], PI*p_d[1], PI*p_d[2], PI*p_d[3]};
     theta = vector<double>(4,0);
     kappa_r = vector<double>(4,1);
     kappa_phi = vector<double>(4,1);
