@@ -101,7 +101,7 @@ model_config = {
 	},
 }
 
-EXPERIMENT_TAG = 'vary_energy_ref_4'
+EXPERIMENT_TAG = 'vary_energy_ref_1'
 NUM_OPTIMIZATION_STEPS = 250
 E_0 = 30
 NUM_VARIATIONS = 15
@@ -110,24 +110,25 @@ def perform_experiment(E_ref):
 	from Experiment import Experiment
 
 	lb = [10, 10, 20, 20, -30, -30, 0.5, 0.1, 0.1, 0, 0, 0]
-	ub = [40, 40, 40, 40, 5, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
+	ub = [40, 40, 40, 40, 0, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [35, 35, 30, 30, 0, 5, 0.6, 0.4, 0.4, 0, 0, 0]
+	initial = [35, 35, 30, 30, -5, 5, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='4 E_ref = ' + str(E_ref))
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=E_ref, variation_params=None, num_variations=1, perturbation_params=None, remarks='E_ref = ' + str(E_ref))
 	e.run()
 
 def run():
 	# variances = [40, 60, 80, 100, 120, 140, 160]
-	variances = [10, 20, 30, 40, 50, 60]
+	variances = [10, 15, 20, 25, 30, 35, 40, 45]
 
 	for variance in variances:
-		perform_experiment(variance)
+		for _ in range(5):
+			perform_experiment(variance)
 
 def get_experiments():
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['experiments_2']
+	experiments_collection = db['gait_transition']
 
 	return experiments_collection.find({'experiment_tag': EXPERIMENT_TAG})
 
