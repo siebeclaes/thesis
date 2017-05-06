@@ -11,6 +11,8 @@
 #endif
 
 #define E0 100
+#define NUM_ROTATION_SAMPLES 10
+#define INITIALIZATION_DURATION 5 // Only start measuring distance and energy after 5 seconds
 
 QuadrupedEnv* env = 0;
 bool activated = false;
@@ -219,7 +221,7 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 		mj_step(m, d);
 
     // Update consumed energy after initialization phase
-    if (d->time > 5)
+    if (d->time > INITIALIZATION_DURATION)
     {
         for (int i = 0; i < 4; i++)
         {
@@ -230,22 +232,30 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
             // Scale torques by scaling_factor ^ 2
             energy += mju_abs(d->actuator_force[i] / 100 * theta);
         } 
-    }
-    
+    }    
 
     // Get position samples to compensate direction after initialization phase
-    if (!pos_sample_1_done && d->time > 8)
+    if (!pos_sample_1_done && d->time > INITIALIZATION_DURATION)
     {
-        pos_sample_1_x = d->qpos[freeJointAddress];
-        pos_sample_1_y = d->qpos[freeJointAddress + 1];
-        pos_sample_1_done = true;
-    }
+        if (rotation_sample_counter < NUM_ROTATION_SAMPLES)
+        {
+            // Check current rotation. If it is too high, abort
+            double* rotation_frame_2 = &d->xmat[9];
+            double* vr_2 = &rotation_frame_2[3];
+            double rr[3] = {0,1,0};
+            rotation_after_init += angleBetween(vr_2, rr);
 
-    if (!pos_sample_2_done && d->time > 9)
-    {
-        pos_sample_2_x = d->qpos[freeJointAddress];
-        pos_sample_2_y = d->qpos[freeJointAddress + 1];
-        pos_sample_2_done = true;
+            rotation_sample_counter++;
+        }
+
+        if (rotation_sample_counter == NUM_ROTATION_SAMPLES)
+        {
+            rotation_after_init /= NUM_ROTATION_SAMPLES;
+
+            pos_sample_1_x = d->qpos[freeJointAddress];
+            pos_sample_1_y = d->qpos[freeJointAddress + 1];
+            pos_sample_1_done = true;
+        }
     }
 
     // Check for warnings (they indicate numerical instabilities)
@@ -317,14 +327,12 @@ double QuadrupedEnv::getTime()
 
 double QuadrupedEnv::getDistance()
 {
-    double current_x = d->qpos[freeJointAddress];
-    double current_y = d->qpos[freeJointAddress + 1];
+    double current_x = d->qpos[freeJointAddress] - pos_sample_1_x;
+    double current_y = d->qpos[freeJointAddress + 1] - pos_sample_1_y;
 
-    double alpha = mju_atan2(pos_sample_2_x - pos_sample_1_x, pos_sample_2_y - pos_sample_1_y);
-    double end_y_rotated = mju_cos(alpha) * current_y - mju_sin(alpha) * current_x;
-    double start_y_rotated = mju_cos(alpha) * pos_sample_2_y - mju_sin(alpha) * pos_sample_2_x;
+    double end_y_rotated = mju_cos(rotation_after_init) * current_y - mju_sin(rotation_after_init) * current_x;
 
-    double dy = end_y_rotated - start_y_rotated;
+    double dy = end_y_rotated;
 
     return mju_abs(dy / 10);
 }

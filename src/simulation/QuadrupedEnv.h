@@ -78,10 +78,9 @@ private:
 	// Position samples to get direction after initialization
 	double pos_sample_1_x = 0;
 	double pos_sample_1_y = 0;
-	double pos_sample_2_x = 0;
-	double pos_sample_2_y = 0;
+	int rotation_sample_counter = 0;
+	double rotation_after_init = 0;
 	bool pos_sample_1_done = false;
-	bool pos_sample_2_done = false;
 
 	// Energy computation variables
 	int actuator_indices[4];
