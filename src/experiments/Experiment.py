@@ -2,6 +2,7 @@ import os
 import feedback_cpg as sim
 from model_variations import generate_temp_model_file, generate_model_variations
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from utils import printProgressBar
 import datetime
 import generate_model
@@ -230,12 +231,21 @@ class Experiment:
 			self.init_document()
 			return self.run_optimization(logging)
 		else:
-			# Save results in DB
-			client = MongoClient('localhost', 27017)
-			db = client['thesis']
-			experiments_collection = db['experiments_2']
-			insert_result = experiments_collection.insert_one(self.get_document())
-			return insert_result.inserted_id
+			document = self.get_document()
+			try:
+				# Save results in DB
+				client = MongoClient('localhost', 27017)
+				db = client['thesis']
+				experiments_collection = db['experiments_2']
+				insert_result = experiments_collection.insert_one(document)
+				return insert_result.inserted_id
+			except ServerSelectionTimeoutError:
+				import pickle
+				import time
+				timestr = time.strftime("%Y%m%d-%H%M%S")
+
+				with open('experiment_logs/' + timestr + '.pickle', 'wb') as f:
+					pickle.dump(document, f)
 
 	def get_document(self):
 		doc = {}
