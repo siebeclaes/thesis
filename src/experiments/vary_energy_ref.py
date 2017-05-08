@@ -130,7 +130,7 @@ def get_experiments():
 	db = client['thesis']
 	experiments_collection = db['gait_transition']
 
-	return experiments_collection.find({'experiment_tag': EXPERIMENT_TAG})
+	return experiments_collection.find()
 
 def eval_wrapper(variables):
 	model_file = variables['model_file']
@@ -141,134 +141,46 @@ def eval_wrapper(variables):
 	logging = variables['logging']
 	return sim.evaluate(model_file, closed_loop, params, perturbations, render, logging)
 
-def test_experiment(experiment):
-	num_variations = 40
-	default_morphology = experiment['default_morphology']
-	variation_params = experiment['variation_params']
-	model_files, delta_dicts = generate_model_variations(default_morphology, variation_params, num_variations)
-	solution_perturbations = [[]] * len(model_files)
-
-	cpg_params = experiment['results']['simulations'][experiment['results']['best_id']]['cpg_params']
-	logging = False
-	render = False
-
-	mp_pool = multiprocessing.Pool(8)
-
-	x = [{'model_file': model_file, 'closed_loop': False, 'params': cpg_params, 'render': False, 'logging': logging, 'perturbations': p} for model_file, p in zip(model_files, solution_perturbations)]
-	results = mp_pool.map(eval_wrapper, x)
-
-	rewards, distances, energies = [], [], []
-
-	for result in results:
-		succes, simulated_time, distance, energy_consumed, action_history, sensor_history = result
-
-		# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
-		reward = 0 if distance < 0 or not succes else (10-0.01*(energy_consumed-experiment['E0'])**2)*(distance)
-		rewards.append(reward)
-		distances.append(distance)
-		energies.append(energy_consumed)
-
-	return (rewards, distances, energies)
-
-def test_results():
-	import matplotlib.pyplot as plt
-	indices, mins, avgs, maxs, stds = [], [], [], [], []
-	avg_distance = []
-	avg_energy = []
-	stds_distance = []
-	stds_energy = []
-
-	for doc in get_experiments():
-		rewards, distances, energies = test_experiment(doc)
-		percentage = int(np.sqrt(doc['experiment_tag_index']) / 400 * 100)
-
-		indices.append(percentage)
-		# mins.append(min(rewards))
-		avgs.append(sum(rewards)/len(rewards))
-		avg_distance.append(sum(distances)/len(distances))
-		avg_energy.append(sum(energies)/len(energies))
-		# maxs.append(max(rewards))
-		# print(np.std(rewards))
-		stds.append(np.std(rewards))
-		stds_distance.append(np.std(distances))
-		stds_energy.append(np.std(energies))
-
-	plt.figure()
-	plt.errorbar(indices, avgs, yerr=stds, color='blue', label='Average')
-	plt.ylim(ymin=0)
-	plt.xlabel('standard deviation % of mean')
-	plt.ylabel('Reward')
-	plt.legend()
-	plt.title('Varying spring stiffness standard deviation')
-
-	plt.show()
-
-	plt.figure()
-	plt.errorbar(indices, avg_distance, yerr=stds_distance, color='red', label='Average distance')
-	plt.ylim(ymin=0)
-	plt.xlabel('standard deviation % of mean')
-	plt.ylabel('Distance')
-	plt.legend()
-	plt.title('Varying spring stiffness standard deviation')
-
-	plt.show()
-
-	plt.figure()
-	plt.errorbar(indices, avg_energy, yerr=stds_energy, color='green', label='Average energy')
-	plt.ylim(ymin=0)
-	plt.xlabel('standard deviation % of mean')
-	plt.ylabel('Energy')
-	plt.legend()
-	plt.title('Varying spring stiffness standard deviation')
-
-	plt.show()
-
 
 def view_results():
+	distance, energy, phase1, phase2, phase3, ed, reward, E_ref = [], [], [], [], [], [], [], []
+
+	for doc in get_experiments():
+		E0 = doc['E0']
+		best_simulation_id = doc['results']['best_id']
+		best_simulation = doc['results']['simulations'][best_simulation_id]
+		d = best_simulation['distance'][0]
+		e = best_simulation['energy'][0]
+		r = best_simulation['reward']
+		params = best_simulation['cpg_params']
+		a = params[9]
+		b = params[10]
+		c = params[11]
+		if e/d < 6:
+			E_ref.append(E0 )
+			phase1.append(a)
+			phase2.append(b)
+			phase3.append(c)
+			reward.append(r)
+			distance.append(d)
+			energy.append(e)
+			ed.append(e/d)
+
+	# save_scatter(E_ref, ed, 'COT_vs_Eref_outliers_removed', 'Eref', 'COT')
+	# save_scatter(ed, phase3, 'HindOffset_vs_COT_outliers_removed', 'COT', 'HindOffset')
+	# save_scatter(E_ref, energy, 'Energy_vs_Eref_outliers_removed', 'Eref', 'Energy')
+	# save_scatter(E_ref, distance, 'Distance_vs_Eref', 'Eref', 'Distance')
+	save_scatter(distance, phase3, 'HindOffset_vs_distance_outliers_removed', 'Distance', 'HindOffset')
+	save_scatter(energy, phase3, 'HindOffset_vs_energy_outliers_removed', 'Energy', 'HindOffset')
+
+def save_scatter(x, y, title, xlabel, ylabel):
 	import matplotlib.pyplot as plt
-	print('Showing results...')
-	client = MongoClient('localhost', 27017)
-	db = client['thesis']
-	experiments_collection = db['experiments_2']
-
-	indices, mins, avgs, maxs, stds = [], [], [], [], []
-
-	for doc in experiments_collection.find({'experiment_tag': EXPERIMENT_TAG}):
-		variation_best = analyze_variation_performance(doc)
-		indices.append(np.sqrt(doc['experiment_tag_index']))
-		mins.append(min(variation_best))
-		avgs.append(sum(variation_best)/len(variation_best))
-		maxs.append(max(variation_best))
-		stds.append(np.std(variation_best))
-
-	f, axarr = plt.subplots(2, sharex=True)
-
-	# TODO: include std deviation reward on same plot (bars around point)
-	axarr[0].plot(indices, mins, color='green', label='Minimum')
-	axarr[0].plot(indices, avgs, color='blue', label='Average')
-	axarr[0].plot(indices, maxs, color='red', label='Maximum')
-	axarr[0].set_xlabel('Spring stiffness standard deviation')
-	axarr[0].set_ylabel('Reward')
-	axarr[0].legend()
-
-	axarr[1].plot(indices, stds, color='yellow', label='Standard deviation')
-	axarr[0].set_xlabel('Spring stiffness standard deviation')
-	axarr[1].set_ylabel('Std deviation')
-
-	plt.show()
-
-def analyze_variation_performance(experiment):
-    variation_best = [0] * len(experiment['delta_dicts'])
-
-    for simulation in experiment['results']['simulations']:
-        variation_index = simulation['variation_index']
-        reward = simulation['reward']
-
-        if reward > variation_best[variation_index]:
-            variation_best[variation_index] = reward
-
-    return variation_best
-
+	plt.figure()
+	plt.scatter(x, y)
+	plt.xlabel(xlabel)
+	plt.ylabel(ylabel)
+	plt.title(title)
+	plt.savefig('plots/' + title + '.png')
 
 if __name__ == '__main__':
 	if len(sys.argv) < 2:
@@ -276,10 +188,8 @@ if __name__ == '__main__':
 
 	if sys.argv[1] == 'train':
 		run()
-	elif sys.argv[1] == 'train_results':
+	elif sys.argv[1] == 'results':
 		view_results()
-	elif sys.argv[1] == 'test':
-		test_results()
 
 	
 
