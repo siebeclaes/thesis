@@ -328,13 +328,16 @@ double QuadrupedEnv::getTime()
 double QuadrupedEnv::getDistance()
 {
     double current_x = d->qpos[freeJointAddress] - pos_sample_1_x;
-    double current_y = d->qpos[freeJointAddress + 1] - pos_sample_1_y;
+
+    // Change direction of y-axis.
+    // The model generator creates the model with the robot head pointing along the negative y-axis.
+    // Calculations are easier when the robot starts along the positive y-axis
+    double current_y = (d->qpos[freeJointAddress + 1] - pos_sample_1_y) * -1;
 
     double end_y_rotated = mju_cos(rotation_after_init) * current_y - mju_sin(rotation_after_init) * current_x;
 
     double dy = end_y_rotated;
-
-    return mju_abs(dy / 10);
+    return dy / 10;
 }
 
 double QuadrupedEnv::getEnergyConsumed()
