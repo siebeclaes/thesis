@@ -290,6 +290,12 @@ def generate_body():
 	torso.append(leg3.generate_xml(width / 2, length/2 - model_config['legs']['BL']['leg_attachment_length_offset'], leg_height))
 	torso.append(leg4.generate_xml(width / 2, length/2 - model_config['legs']['BR']['leg_attachment_length_offset'], leg_height))
 
+	battery = etree.Element('body', name='battery_body')
+	battery_geom = etree.Element('geom', type="box", size=".17 .37 .105", mass="0.117", pos="0 {0:.5f} {1:.5f}".format(-(length/2)/model_scale + .37, leg_height/model_scale - .105), name='battery_geom')
+	battery.append(battery_geom)
+
+	torso.append(battery)
+
 	worldbody.extend([floor, torso])
 
 	return worldbody
