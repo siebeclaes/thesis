@@ -28,7 +28,7 @@ def eval_wrapper(variables):
 	return results
 
 class Experiment:
-	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0, remarks=''):
+	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E_ref=20, perturbation_params=None, variation_params=None, num_variations=0, collection_name='experiments_2', save_in_database=False, experiment_tag=None, experiment_tag_index=0, remarks=''):
 		self.default_morphology = default_morphology
 		self.closed_loop = closed_loop
 		self.initial_values = initial_values
@@ -36,7 +36,7 @@ class Experiment:
 		self.upper_bounds = upper_bounds
 		self.variances = variances
 		self.max_iters = max_iters
-		self.E0 = E0
+		self.E_ref = E_ref
 		self.perturbation_params = perturbation_params
 		self.variation_params = variation_params
 		self.num_variations = num_variations
@@ -44,6 +44,8 @@ class Experiment:
 		self.experiment_tag = experiment_tag
 		self.experiment_tag_index = experiment_tag_index
 		self.remarks = remarks
+		self.collection_name = collection_name
+		self.save_in_database = save_in_database
 
 		self.type = "closed" if self.closed_loop else "open"
 
@@ -180,7 +182,7 @@ class Experiment:
 					action_history.append(ah)
 					sensor_history.append(sh)
 					self.total_simulated_time += st
-					reward = 0 if d < 0 or not succes else (d * np.tanh(self.E0/ec))
+					reward = 0 if d < 0 or not succes else (d * np.tanh(self.E_ref/ec))
 					solution_rewards.append(reward)
 
 				reward = sum(solution_rewards) / len(solution_rewards)
@@ -232,20 +234,30 @@ class Experiment:
 			return self.run_optimization(logging)
 		else:
 			document = self.get_document()
-			try:
-				# Save results in DB
-				client = MongoClient('localhost', 27017)
-				db = client['thesis']
-				experiments_collection = db['experiments_2']
-				insert_result = experiments_collection.insert_one(document)
-				return insert_result.inserted_id
-			except ServerSelectionTimeoutError:
-				import pickle
-				import time
-				timestr = time.strftime("%Y%m%d-%H%M%S")
+			if self.save_in_database:
+				self.save_in_db(document)
+			else:
+				self.save_to_file(document)
 
-				with open('experiment_logs/' + timestr + '.pickle', 'wb') as f:
-					pickle.dump(document, f)
+	def save_in_db(self, document):
+		try:
+			# Save results in DB
+			client = MongoClient('localhost', 27017)
+			db = client['thesis']
+			experiments_collection = db[self.collection_name]
+			insert_result = experiments_collection.insert_one(document)
+			return insert_result.inserted_id
+		except ServerSelectionTimeoutError:
+			self.save_to_file(document)
+
+	def save_to_file(self, document):
+		import pickle
+		import time
+		timestr = time.strftime("%Y%m%d-%H%M%S")
+
+		with open('experiment_logs/' + self.collection_name + '-' + timestr + '.pickle', 'wb') as f:
+			pickle.dump(document, f)
+
 
 	def get_document(self):
 		doc = {}
@@ -253,7 +265,7 @@ class Experiment:
 		doc['timestamp'] = datetime.datetime.utcnow()
 		doc['generate_model_version'] = generate_model.get_model_generator_version()
 		doc['cpg_version'] = sim.get_cpg_version()
-		doc['E0'] = self.E0
+		doc['E_ref'] = self.E_ref
 		doc['experiment_tag'] = self.experiment_tag
 		doc['experiment_tag_index'] = self.experiment_tag_index
 		doc['remarks'] = self.remarks,
