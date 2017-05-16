@@ -14,6 +14,7 @@ from numpy import arange, sin, pi, cos
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pymongo import MongoClient
+import pymongo
 
 from operator import itemgetter
 from model_variations import generate_temp_model_file, dict_elementwise_operator, generate_model_variations
@@ -226,7 +227,8 @@ class SimulationView(QtWidgets.QVBoxLayout):
         if not self.experiment['default_morphology']:
             self.model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
         elif self.experiment['variation_params']:
-            model_files, _ = generate_model_variations(self.experiment['default_morphology'], self.experiment['variation_params'], num=1)
+            model_files, variation_dicts = generate_model_variations(self.experiment['default_morphology'], self.experiment['variation_params'], num=1)
+            print(variation_dicts)
             self.model_file = model_files[0]
         elif not self.experiment['delta_dicts']:
             self.model_file = generate_temp_model_file(self.experiment['default_morphology'])
@@ -423,8 +425,10 @@ class ExperimentsListWidget(QtWidgets.QListWidget):
     def load_list(self):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments_2']
-        for doc in experiments_collection.find({}, {"results.simulations": 0}):
+        experiments_collection = db[collection_name]
+        # print(experiments_collection.index_information())
+        experiments_collection.create_index("timestamp")
+        for doc in experiments_collection.find({}, {"results.simulations": 0}).sort("timestamp", pymongo.ASCENDING):
             self.experiments.append(doc)
 
             item = QtWidgets.QListWidgetItem()
@@ -471,7 +475,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def experiment_selected(self, experiment_id):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments_2']
+        experiments_collection = db[collection_name]
         experiment = experiments_collection.find_one({'_id': experiment_id})
         self.detail_view.update_experiment(experiment)
 
@@ -488,11 +492,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                                     """
                                 )
 
+if len(sys.argv) < 2:
+    print("Please specify the collection you want to view.")
+else:
+    collection_name = sys.argv[1]    
 
-qApp = QtWidgets.QApplication(sys.argv)
+    qApp = QtWidgets.QApplication(sys.argv)
 
-aw = ApplicationWindow()
-aw.setWindowTitle("%s" % progname)
-aw.show()
-sys.exit(qApp.exec_())
-#qApp.exec_()
+    aw = ApplicationWindow()
+    aw.setWindowTitle("%s" % progname)
+    aw.show()
+    sys.exit(qApp.exec_())
+    #qApp.exec_()
