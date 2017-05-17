@@ -8,10 +8,26 @@ VERSION = 2
 # MODEL PARAMETERS
 model_config = {
 	'body': {
-		'width': 15,
-		'height': 3,
-		'length': 25
+		'front': {
+			'width': 14,
+			'height': 3,
+			'length': 8,
+			'mass': 0.179,
+		},
+		'middle': {
+			'width': 5,
+			'height': 0.25,
+			'length': 8,
+			'mass': 0.030,
+		},
+		'hind': {
+			'width': 9,
+			'height': 2.5,
+			'length': 6,
+			'mass': 0.179,
+		},		
 	},
+	'battery_weight': 0.117,
 	'legs': {
 		'FL': {
 			'motor': {
@@ -25,13 +41,13 @@ model_config = {
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
 			'femur_angle': 25, # angle between femur and vertical in degrees
-			'tibia_length': 8.5,
+			'tibia_length': 9.5,
 			'spring_length': 2.5,
-			'femur_spring_tibia_joint_dst': 4.5,
-			'tibia_spring_to_joint_dst': 3.5,
+			'femur_spring_tibia_joint_dst': 4,
+			'tibia_spring_to_joint_dst': 4,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'FR': {
@@ -46,13 +62,13 @@ model_config = {
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
 			'femur_angle': 25, # angle between femur and vertical in degrees
-			'tibia_length': 8.5,
+			'tibia_length': 9.5,
 			'spring_length': 2.5,
-			'femur_spring_tibia_joint_dst': 4.5,
-			'tibia_spring_to_joint_dst': 3.5,
+			'femur_spring_tibia_joint_dst': 4,
+			'tibia_spring_to_joint_dst': 4,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'BL': {
@@ -67,13 +83,13 @@ model_config = {
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
 			'femur_angle': 0, # angle between femur and vertical in degrees
-			'tibia_length': 8.5,
+			'tibia_length': 9.5,
 			'spring_length': 2.5,
-			'femur_spring_tibia_joint_dst': 4.5,
-			'tibia_spring_to_joint_dst': 3.5,
+			'femur_spring_tibia_joint_dst': 4,
+			'tibia_spring_to_joint_dst': 4,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'BR': {
@@ -88,13 +104,13 @@ model_config = {
 			'leg_attachment_length_offset': 3, # offset of leg attachment point relative to front of body
 			'femur_length': 7,
 			'femur_angle': 0, # angle between femur and vertical in degrees
-			'tibia_length': 8.5,
+			'tibia_length': 9.5,
 			'spring_length': 2.5,
-			'femur_spring_tibia_joint_dst': 4.5,
-			'tibia_spring_to_joint_dst': 3.5,
+			'femur_spring_tibia_joint_dst': 4,
+			'tibia_spring_to_joint_dst': 4,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 	},
@@ -263,40 +279,61 @@ def generate_xml_assets():
 
 	return asset
 
-def generate_body():
+def get_box_geom(x, y, z, width, length, height, mass):
+	return etree.Element('geom',
+					 type="box",
+					 mass="{0:.5f}".format(mass),
+					 size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),
+					 pos="{0:.5f} {1:.5f} {2:.5f}".format(x/model_scale, y/model_scale, z/model_scale))
+
+def get_torso_body():
 	leg1 = MotorLeg(1, model_config['legs']['FL'])
 	leg2 = MotorLeg(2, model_config['legs']['FR'])
 	leg3 = MotorLeg(3, model_config['legs']['BL'])
 	leg4 = MotorLeg(4, model_config['legs']['BR'])
 
-	width = model_config['body']['width']
-	length = model_config['body']['length']
-	height = model_config['body']['height']
-
 	leg_height = max(leg1.get_height(),leg2.get_height(),leg3.get_height(),leg4.get_height())
 
-	worldbody = etree.Element('worldbody')
-	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='3')
+	front_conf = model_config['body']['front']
+	middle_conf = model_config['body']['middle']
+	hind_conf = model_config['body']['hind']
+
+	front_center_y = -(front_conf['length']/2 + middle_conf['length']/2)
+	hind_center_y = hind_conf['length']/2 + middle_conf['length']/2
 
 	torso = etree.Element('body', name='torso')
-	torso_geom = etree.Element('geom', type="box", mass="0.667", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="0 0 {0:.5f}".format((leg_height + height/2) / model_scale))
+	torso_geom_F = get_box_geom(0, front_center_y, leg_height+front_conf['height']/2, front_conf['width'], front_conf['length'], front_conf['height'], front_conf['mass'])
+	torso_geom_M = get_box_geom(0, 0, leg_height+middle_conf['height']/2, middle_conf['width'], middle_conf['length'], middle_conf['height'], middle_conf['mass'])
+	torso_geom_H = get_box_geom(0, hind_center_y, leg_height+hind_conf['height']/2, hind_conf['width'], hind_conf['length'], hind_conf['height'], hind_conf['mass'])
+
 	torso_joint = etree.Element('joint', type='free', limited='false', name='gravity')
 	torso_sensor_site = etree.Element('site', name='sensor_torso', pos="0 0 {0:.5f}".format(leg_height / model_scale))
 
-	torso.extend([torso_geom, torso_joint, torso_sensor_site])
+	torso.extend([torso_geom_F, torso_geom_M, torso_geom_H, torso_joint, torso_sensor_site])
 
-	torso.append(leg1.generate_xml(width / 2, -1 * length/2 + model_config['legs']['FL']['leg_attachment_length_offset'], leg_height))
-	torso.append(leg2.generate_xml(width / 2, -1 * length/2 + model_config['legs']['FR']['leg_attachment_length_offset'], leg_height))
-	torso.append(leg3.generate_xml(width / 2, length/2 - model_config['legs']['BL']['leg_attachment_length_offset'], leg_height))
-	torso.append(leg4.generate_xml(width / 2, length/2 - model_config['legs']['BR']['leg_attachment_length_offset'], leg_height))
+	torso.append(leg1.generate_xml(front_conf['width'] / 2, front_center_y, leg_height))
+	torso.append(leg2.generate_xml(front_conf['width'] / 2, front_center_y, leg_height))
+	torso.append(leg3.generate_xml(hind_conf['width'] / 2, hind_center_y, leg_height))
+	torso.append(leg4.generate_xml(hind_conf['width'] / 2, hind_center_y, leg_height))
 
 	battery_weight = model_config.get('battery_weight', 0)
 
 	if battery_weight > 0:
 		battery = etree.Element('body', name='battery_body')
-		battery_geom = etree.Element('geom', type="box", size=".17 .37 .105", mass="{0:.5f}".format(battery_weight), pos="0 {0:.5f} {1:.5f}".format(-(length/2)/model_scale + .37, leg_height/model_scale - .105), name='battery_geom')
+		# battery_geom = etree.Element('geom', type="box", size=".17 .37 .105", mass="{0:.5f}".format(battery_weight), pos="0 {0:.5f} {1:.5f}".format(-(length/2)/model_scale + .37, leg_height/model_scale - .105), name='battery_geom')
+		battery_geom = get_box_geom(0, -(middle_conf['length']/2 + front_conf['length'] - 3.7), leg_height - 1.05, 1.7, 3.7, 1.05, battery_weight)
 		battery.append(battery_geom)
 		torso.append(battery)
+
+	return torso
+
+def generate_body():
+	worldbody = etree.Element('worldbody')
+	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='3')
+
+	torso = get_torso_body()
+
+	
 
 	worldbody.extend([floor, torso])
 
@@ -323,7 +360,7 @@ def generate_xml_model(output_file, config=None):
 	if config is not None:
 		# update model configuration
 		for key, value in config.items():
-			model_config[key] = value
+				model_config[key] = value
 
 	root = etree.Element('mujoco', model='quadruped')
 
