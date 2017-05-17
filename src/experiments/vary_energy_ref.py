@@ -128,7 +128,7 @@ def run():
 def get_experiments():
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['gait_transition']
+	experiments_collection = db['gait_transition_2']
 
 	return experiments_collection.find()
 
@@ -144,34 +144,41 @@ def eval_wrapper(variables):
 
 def view_results():
 	distance, energy, phase1, phase2, phase3, ed, reward, E_ref = [], [], [], [], [], [], [], []
-
+	best_simulations = []
 	for doc in get_experiments():
-		E0 = doc['E0']
+		E0 = doc.get('E0', None)
+		if E0 is None:
+			E0 = doc.get('E_ref')
 		best_simulation_id = doc['results']['best_id']
 		best_simulation = doc['results']['simulations'][best_simulation_id]
-		d = best_simulation['distance'][0]
-		e = best_simulation['energy'][0]
-		r = best_simulation['reward']
-		params = best_simulation['cpg_params']
-		a = params[9]
-		b = params[10]
-		c = params[11]
-		if e/d < 6:
-			E_ref.append(E0 )
-			phase1.append(a)
-			phase2.append(b)
-			phase3.append(c)
-			reward.append(r)
-			distance.append(d)
-			energy.append(e)
-			ed.append(e/d)
+		best_simulation['E_ref'] = E0
+		best_simulations.append(best_simulation)
+		# d = best_simulation['distance'][0]
+		# e = best_simulation['energy'][0]
+		# r = best_simulation['reward']
+		# params = best_simulation['cpg_params']
+		# a = params[9]
+		# b = params[10]
+		# c = params[11]
+		# if e/d < 6:
+		# 	E_ref.append(E0 )
+		# 	phase1.append(a)
+		# 	phase2.append(b)
+		# 	phase3.append(c)
+		# 	reward.append(r)
+		# 	distance.append(d)
+		# 	energy.append(e)
+		# 	ed.append(e/d)
+	import pickle
+	with open('gait_transition_2_simulations_extra.pickle', 'wb') as f:
+		pickle.dump(best_simulations, f)
 
 	# save_scatter(E_ref, ed, 'COT_vs_Eref_outliers_removed', 'Eref', 'COT')
 	# save_scatter(ed, phase3, 'HindOffset_vs_COT_outliers_removed', 'COT', 'HindOffset')
 	# save_scatter(E_ref, energy, 'Energy_vs_Eref_outliers_removed', 'Eref', 'Energy')
 	# save_scatter(E_ref, distance, 'Distance_vs_Eref', 'Eref', 'Distance')
-	save_scatter(distance, phase3, 'HindOffset_vs_distance_outliers_removed', 'Distance', 'HindOffset')
-	save_scatter(energy, phase3, 'HindOffset_vs_energy_outliers_removed', 'Energy', 'HindOffset')
+	# save_scatter(distance, phase3, 'HindOffset_vs_distance_outliers_removed', 'Distance', 'HindOffset')
+	# save_scatter(energy, phase3, 'HindOffset_vs_energy_outliers_removed', 'Energy', 'HindOffset')
 
 def save_scatter(x, y, title, xlabel, ylabel):
 	import matplotlib.pyplot as plt
