@@ -146,7 +146,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
     // printf("Model mass: %f\n", mj_getTotalmass(m))
     torso_body_id = mj_name2id(m, mjOBJ_BODY, "torso");
     torso_xpos_id = mj_name2id(m, mjOBJ_GEOM, "torso_geom");
-    // printf("Torso_geom_id: %d\n", torso_xpos_id);
+    // printf("Torso_body_id: %d\n", torso_xpos_id);
 
     actuator_indices[0] = mj_name2id(m, mjOBJ_ACTUATOR, "act_1");
     actuator_indices[1] = mj_name2id(m, mjOBJ_ACTUATOR, "act_2");
@@ -273,34 +273,20 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 		return false;
 	}
 
-    double gyro_x = d->sensordata[12];
-    double gyro_y = d->sensordata[13];
-    double gyro_z = d->sensordata[14];
-
-    y_rotation += mju_abs(gyro_y);
-
-    // printf("Orientation: %f %f %f\n", gyro_x, gyro_y, gyro_z);
-
     // Check current rotation. If it is too high, abort
-	double* rotation_frame = &d->xmat[9];
+	double* rotation_frame = &d->geom_xmat[torso_xpos_id*9];
 	double* vr = &rotation_frame[6];
 	double r[3] = {0,0,1};
 	double rotation = angleBetween(vr, r) / 3.141592654 * 180;
 
-    // printf("Moment arm %d: %f\n", 0, d->actuator_moment[m->nv*0+6]);
-    // printf("Moment arm %d: %f\n", 1, d->actuator_moment[m->nv*1+8]);
-    // printf("Moment arm %d: %f\n", 2, d->actuator_moment[m->nv*2+10]);
-    // printf("Moment arm %d: %f\n", 3, d->actuator_moment[m->nv*3+12]);
 
 	if (fabs(rotation) > maxRotation)
 	{
 		survived = false;
-		// printf("Tilted too far, time: %f\n", d->time);
 	}
 
-    // printf("torso height: %f\n", d->geom_xpos[torso_xpos_id+2]);
     // Check for torso too low
-    if (d->geom_xpos[torso_xpos_id+2] < -0.7)
+    if (d->geom_xpos[3*torso_xpos_id+2] < -0.7)
     {
         survived = false;
     }

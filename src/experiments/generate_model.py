@@ -279,12 +279,17 @@ def generate_xml_assets():
 
 	return asset
 
-def get_box_geom(x, y, z, width, length, height, mass):
-	return etree.Element('geom',
+def get_box_geom(x, y, z, width, length, height, mass, name=None):
+	el = etree.Element('geom',
 					 type="box",
 					 mass="{0:.5f}".format(mass),
 					 size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),
 					 pos="{0:.5f} {1:.5f} {2:.5f}".format(x/model_scale, y/model_scale, z/model_scale))
+
+	if name:
+		el.set('name', name)
+		
+	return el
 
 def get_torso_body():
 	leg1 = MotorLeg(1, model_config['legs']['FL'])
@@ -303,7 +308,7 @@ def get_torso_body():
 
 	torso = etree.Element('body', name='torso')
 	torso_geom_F = get_box_geom(0, front_center_y, leg_height+front_conf['height']/2, front_conf['width'], front_conf['length'], front_conf['height'], front_conf['mass'])
-	torso_geom_M = get_box_geom(0, 0, leg_height+middle_conf['height']/2, middle_conf['width'], middle_conf['length'], middle_conf['height'], middle_conf['mass'])
+	torso_geom_M = get_box_geom(0, 0, leg_height+middle_conf['height']/2, middle_conf['width'], middle_conf['length'], middle_conf['height'], middle_conf['mass'], name="torso_geom")
 	torso_geom_H = get_box_geom(0, hind_center_y, leg_height+hind_conf['height']/2, hind_conf['width'], hind_conf['length'], hind_conf['height'], hind_conf['mass'])
 
 	torso_joint = etree.Element('joint', type='free', limited='false', name='gravity')
