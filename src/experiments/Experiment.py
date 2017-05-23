@@ -101,6 +101,14 @@ class Experiment:
 		# frequency times 2 pi
 		array[6] = array[6] * 2 * np.pi
 
+		if len(array) == 10:
+			# Ony 1 phase offset parameter gets optimized
+			# this parameter is the offset between the front and hind legs
+			# Convert this offset to the 3 offsets needed to generate the CPG signals
+			front_hind_offset = array[9]
+			array[9] = 0 # Offset FR to FL is 0 in bound gait
+			array = np.append(array, [front_hind_offset, front_hind_offset]) # append BL and BR offsets to CPG params
+
 		return array
 
 	def sample_variations(self, num):
