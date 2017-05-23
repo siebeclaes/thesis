@@ -117,50 +117,48 @@ model_config = {
 	},
 }
 
-variation_params = {
-		'legs': {
-			'FL': {
-				# 'tibia_length': {'normal': [0, 0.5]},
-				'spring_stiffness': {'normal': [0, 20]},
-			},
-			'FR': {
-				# 'tibia_length': 'legs.FL.tibia_length',
-				'spring_stiffness': {'normal': [0, 20]},
-			},
-			'BL': {
-				# 'tibia_length': {'normal': [0, 0.5]},
-				'spring_stiffness': {'normal': [0, 20]},
-			},
-			'BR': {
-				# 'tibia_length': 'legs.BL.tibia_length',
-				'spring_stiffness': {'normal': [0, 20]},
-			},
-		},
-		# 'battery_weight': {'normal': [0, 15]},
-	}
-
-EXPERIMENT_TAG = 'spring_noise'
+EXPERIMENT_TAG = 'spring_noise_inertia'
 NUM_OPTIMIZATION_STEPS = 200
 NUM_VARIATIONS = 5
-COLLECTION_NAME = 'spring_noise'
+COLLECTION_NAME = 'spring_noise_inertia'
 
-def perform_experiment(E_ref):
+def perform_experiment(E_ref, spring_std_dev):
 	from Experiment import Experiment
 
-	lb = [10, 10, 20, 20, -30, -30, 0.5, 0.1, 0.1, 0, 0, 0]
-	ub = [40, 40, 40, 40, 0, 15, 4, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
+	variation_params = {
+		'legs': {
+			'FL': {
+				'spring_stiffness': {'normal': [0, spring_std_dev**2]},
+			},
+			'FR': {
+				'spring_stiffness': {'normal': [0, spring_std_dev**2]},
+			},
+			'BL': {
+				'spring_stiffness': {'normal': [0, spring_std_dev**2]},
+			},
+			'BR': {
+				'spring_stiffness': {'normal': [0, spring_std_dev**2]},
+			},
+		},
+	}
+
+	lb = [10, 10, 20, 20, -30, -30, 0.5, 0.1, 0.1, 0]
+	ub = [40, 40, 40, 40, 0, 15, 4, 0.9, 0.9, 2*np.pi]
 
 	initial = [35, 35, 30, 30, -5, 5, 1, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.3, NUM_OPTIMIZATION_STEPS, E_ref=E_ref, variation_params=variation_params, num_variations=NUM_VARIATIONS, collection_name=COLLECTION_NAME,  perturbation_params=None, remarks='E_ref = ' + str(E_ref))
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E_ref=E_ref, variation_params=variation_params, num_variations=NUM_VARIATIONS, collection_name=COLLECTION_NAME,  perturbation_params=None, remarks='Result bound gait: E_ref = ' + str(E_ref) + ' Std dev = ' + spring_std_dev)
 	e.run()
 
 def run():
-	e_refs = [15]
+	e_refs = [30]
+	spring_std_devs_percent = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 
 	for _ in range(1):
 		for e_ref in e_refs:
-			perform_experiment(e_ref)
+			for std_dev_percent in spring_std_devs_percent:
+				print(std_dev_percent)
+				perform_experiment(e_ref, std_dev_percent*211/100)
 
 def get_experiments():
 	client = MongoClient('localhost', 27017)
