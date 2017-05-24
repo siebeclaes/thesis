@@ -245,8 +245,10 @@ class Experiment:
 			document = self.get_document()
 			if self.save_in_database:
 				self.save_in_db(document)
+				self.save_es_object_to_file(es)
 			else:
 				self.save_to_file(document)
+				self.save_es_object_to_file(es)
 
 	def save_in_db(self, document):
 		try:
@@ -267,6 +269,13 @@ class Experiment:
 		with open('experiment_logs/' + self.collection_name + '-' + timestr + '.pickle', 'wb') as f:
 			pickle.dump(document, f)
 
+	def save_es_object_to_file(self, es):
+		import pickle
+		import time
+		timestr = time.strftime("%Y%m%d-%H%M%S")
+
+		with open('experiment_logs/' + self.collection_name + '-es' + '-' + timestr + '.pickle', 'wb') as f:
+			pickle.dump(es, f)
 
 	def get_document(self):
 		doc = {}
@@ -316,10 +325,26 @@ if __name__ == '__main__':
 	# MODEL PARAMETERS
 	model_config = {
 		'body': {
-			'width': 15,
+		'front': {
+			'width': 14,
 			'height': 3,
-			'length': 25
+			'length': 8,
+			'mass': 0.179,
 		},
+		'middle': {
+			'width': 5,
+			'height': 0.25,
+			'length': 8,
+			'mass': 0.030,
+		},
+		'hind': {
+			'width': 9,
+			'height': 2.5,
+			'length': 6,
+			'mass': 0.179,
+		},		
+	},
+	'battery_weight': 0.117,
 		'legs': {
 			'FL': {
 				'motor': {
