@@ -28,7 +28,7 @@ def eval_wrapper(variables):
 	return results
 
 class Experiment:
-	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E_ref=20, perturbation_params=None, variation_params=None, num_variations=0, collection_name='experiments_2', save_in_database=False, experiment_tag=None, experiment_tag_index=0, remarks=''):
+	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E_ref=20, perturbation_params=None, variation_params=None, num_variations=0, collection_name='experiments_2', save_in_database=False, experiment_tag=None, experiment_tag_index=0, remarks='', popsize=30):
 		self.default_morphology = default_morphology
 		self.closed_loop = closed_loop
 		self.initial_values = initial_values
@@ -46,6 +46,7 @@ class Experiment:
 		self.remarks = remarks
 		self.collection_name = collection_name
 		self.save_in_database = save_in_database
+		self.popsize = popsize
 
 		self.type = "closed" if self.closed_loop else "open"
 
@@ -125,7 +126,7 @@ class Experiment:
 
 	def run_optimization(self, logging=False):
 		es = cma.CMAEvolutionStrategy(self.normalize_initial_values(), self.variances,
-			{'popsize': 25, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
+			{'popsize': self.popsize, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
 		# print('Population size: ' + str(es.popsize))
 		self.seed = es.opts['seed']
 
