@@ -119,7 +119,7 @@ model_config = {
 
 EXPERIMENT_TAG = 'spring_noise_inertia'
 NUM_OPTIMIZATION_STEPS = 300
-POPSIZE = 100
+POPSIZE = 80
 NUM_VARIATIONS = 10
 COLLECTION_NAME = 'spring_noise_inertia'
 
@@ -143,10 +143,10 @@ def perform_experiment(E_ref, spring_std_dev):
 		},
 	}
 
-	lb = [10, 10, 20, 20, -30, -30, 0.5, 0.1, 0.1, 0]
-	ub = [40, 40, 40, 40, 0, 15, 4, 0.9, 0.9, 2*np.pi]
+	lb = [10, 20, -70, -70, 0.5, 0.1, 0.1, 0]
+	ub = [40, 40, 0, 0, 4, 0.9, 0.9, 2*np.pi]
 
-	initial = [35, 35, 30, 30, -5, 5, 1, 0.4, 0.4, 0, 0, 0]
+	initial = [35, 30, -25, -25, 1, 0.4, 0.4, 0]
 
 	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E_ref=E_ref, variation_params=variation_params, num_variations=NUM_VARIATIONS, collection_name=COLLECTION_NAME,  perturbation_params=None, remarks='Result bound gait: E_ref = ' + str(E_ref) + ' Std dev = ' + str(spring_std_dev), popsize=POPSIZE)
 	e.run()

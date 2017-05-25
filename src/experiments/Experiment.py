@@ -25,6 +25,7 @@ def eval_wrapper(variables):
 		r = sim.evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
 		results.append(r)
 	# print(results)
+	print("I'm done")
 	return results
 
 class Experiment:
@@ -86,31 +87,38 @@ class Experiment:
 			array[i] = var*(self.upper_bounds[i]-self.lower_bounds[i]) + self.lower_bounds[i]
 			i += 1
 
+		params = np.array(12*[0.0])
+		if len(array) == 8:
+			# Bound gait, so only 1 phase offset parameter and amplitudes are the same for both front and both hind legs
+			# The amplitudes are derived from the bounds on the swing
+			params[0] = (array[0] - array[2])/2
+			params[1] = (array[0] - array[2])/2
+			params[2] = (array[1] - array[3])/2
+			params[3] = (array[1] - array[3])/2
 
-		array[0] = array[0] - array[4]
-		array[1] = array[1] - array[4]
-		array[2] = array[2] - array[5]
-		array[3] = array[3] - array[5]
+			params[4] = array[0] - array[2]	
+			params[5] = array[1] - array[3]	
 
-		# Amplitudes for CPG should be squared
-		array[0] = array[0] * array[0] 
-		array[1] = array[1] * array[1]
+			# Amplitudes for CPG should be squared
+			params[0] = params[0] * params[0] 
+			params[1] = params[1] * params[1]
+			params[2] = params[2] * params[2]
+			params[3] = params[3] * params[3]
 
-		array[2] = array[2] * array[2]
-		array[3] = array[3] * array[3]
+			# frequency times 2 pi
+			params[6] = array[4] * 2 * np.pi
 
-		# frequency times 2 pi
-		array[6] = array[6] * 2 * np.pi
+			params[7] = array[5]
+			params[8] = array[6]
 
-		if len(array) == 10:
 			# Ony 1 phase offset parameter gets optimized
 			# this parameter is the offset between the front and hind legs
 			# Convert this offset to the 3 offsets needed to generate the CPG signals
-			front_hind_offset = array[9]
-			array[9] = 0 # Offset FR to FL is 0 in bound gait
-			array = np.append(array, [front_hind_offset, front_hind_offset]) # append BL and BR offsets to CPG params
-
-		return array
+			front_hind_offset = array[7]
+			params[9] = 0 # Offset FR to FL is 0 in bound gait
+			params[10] = front_hind_offset
+			params[11] = front_hind_offset
+		return params
 
 	def sample_variations(self, num):
 		model_files = []
