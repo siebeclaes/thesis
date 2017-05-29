@@ -96,8 +96,8 @@ class Experiment:
 			params[2] = (array[1] - array[3])/2
 			params[3] = (array[1] - array[3])/2
 
-			params[4] = array[0] - array[2]	
-			params[5] = array[1] - array[3]	
+			params[4] = array[0] - params[0]	
+			params[5] = array[1] - params[2]	
 
 			# Amplitudes for CPG should be squared
 			params[0] = params[0] * params[0] 
