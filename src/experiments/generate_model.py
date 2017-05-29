@@ -157,7 +157,7 @@ class MotorLeg(object):
 		leg_xml = self.leg.generate_xml_leg((-1)**((self.leg_id-1)%2) * (torso_width + 0.51), y, z - self.config['motor']['leg_attachment_height'])
 
 		motor = etree.Element('body')
-		motor_geom = etree.Element('geom', type="box", mass="0.067", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**((self.leg_id-1)%2) * (torso_width - width/2) / model_scale, y / model_scale, (z-height/2) / model_scale))
+		motor_geom = etree.Element('geom', condim='1', type="box", mass="0.067", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**((self.leg_id-1)%2) * (torso_width - width/2) / model_scale, y / model_scale, (z-height/2) / model_scale))
 		# motor_geom = etree.Element('geom', type="box", size="{0:.5f} {1:.5f} {2:.5f}".format(width/2/model_scale, length/2/model_scale, height/2/model_scale),  pos="{0:.5f} {1:.5f} {2:.5f}".format((-1)**(self.leg_id%2) * (torso_width - width/2) / model_scale, y / model_scale, leg_height / model_scale))
 		
 		motor.extend([motor_geom, leg_xml])
@@ -217,17 +217,17 @@ class Leg(object):
 		self.offset_by(x, y, z)
 		
 		leg = etree.Element('body')
-		femur_geom = etree.Element('geom', type='capsule', fromto=self.femur_joint.get_rescaled_text() + ' ' + self.femur_tibia_joint.get_rescaled_text())
+		femur_geom = etree.Element('geom', condim='1', type='capsule', fromto=self.femur_joint.get_rescaled_text() + ' ' + self.femur_tibia_joint.get_rescaled_text())
 		femur_joint = etree.Element('joint', pos=self.femur_joint.get_rescaled_text(), name='shoulder_' + str(self.leg_id), damping=str(self.config['hip_damping']))
 		femur_site = etree.Element('site', name='s'+str(self.leg_id)+'_1', pos=self.femur_attachment.get_rescaled_text())
 
 		tibia = etree.Element('body')
-		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text())
+		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text(), condim='1')
 		tibia_joint = etree.Element('joint', limited='true', range='-60 0', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
 		tibia_site = etree.Element('site', name='s'+str(self.leg_id)+'_2', pos=self.tibia_attachment.get_rescaled_text())
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
-		foot_geom = etree.Element('geom', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
+		foot_geom = etree.Element('geom', condim='1', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
 		foot_site = etree.Element('site', name='sensor_'+str(self.leg_id), pos=self.tibia_foot.get_rescaled_text())
 
 		foot.extend([foot_geom, foot_site])
@@ -334,7 +334,7 @@ def get_torso_body():
 
 def generate_body():
 	worldbody = etree.Element('worldbody')
-	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='3')
+	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='1')
 
 	torso = get_torso_body()
 
