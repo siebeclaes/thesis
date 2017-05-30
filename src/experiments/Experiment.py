@@ -89,6 +89,7 @@ class Experiment:
 
 		params = np.array(12*[0.0])
 		if len(array) == 8:
+			# Mapping B
 			# Bound gait, so only 1 phase offset parameter and amplitudes are the same for both front and both hind legs
 			# The amplitudes are derived from the bounds on the swing
 			params[0] = (array[0] - array[2])/2
@@ -118,6 +119,37 @@ class Experiment:
 			params[9] = 0 # Offset FR to FL is 0 in bound gait
 			params[10] = front_hind_offset
 			params[11] = front_hind_offset
+
+		elif len(array) == 12:
+			# Do not impose bound gait: Mapping A
+			params[0] = array[0] - array[4]
+			params[1] = array[1] - array[4]
+			params[2] = array[2] - array[5]
+			params[3] = array[3] - array[5]
+
+			# Amplitudes for CPG should be squared
+			params[0] = params[0] * params[0] 
+			params[1] = params[1] * params[1]
+			params[2] = params[2] * params[2]
+			params[3] = params[3] * params[3]
+
+			# Copy offsets
+			params[4] = array[4]
+			params[5] = array[5]
+
+			# frequency times 2 pi
+			params[6] = array[6] * 2 * np.pi
+
+			# Copy duty factors
+			params[7] = array[7]
+			params[8] = array[8]
+
+			# Copy three phase offsets
+			params[9] = array[9]
+			params[10] = array[10]
+			params[11] = array[11]
+
+
 		return params
 
 	def sample_variations(self, num):
