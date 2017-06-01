@@ -250,7 +250,7 @@ class Leg(object):
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
 		if not self.with_foot:
-			foot_geom = etree.Element('geom', condim='3', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
+			foot_geom = etree.Element('geom', condim='3', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
 		else:
 			foot_geom = etree.Element('geom', condim='3', friction="{0:.5f} 0.005 0.0001".format(self.config['foot_friction']), type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
 		
@@ -295,9 +295,9 @@ def generate_xml_defaults():
 def generate_xml_assets():
 	asset = etree.Element('asset')
 
-	skybox = etree.Element('texture', type="skybox", builtin="gradient", width="128", height="128", rgb1=".4 .6 .8", rgb2="0 0 0")
+	skybox = etree.Element('texture', type="skybox", builtin="gradient", width="128", height="128", rgb1="1 1 1", rgb2="0 0 0")
 	texgeom = etree.Element('texture', name="texgeom", type="cube", builtin="flat", mark="cross", width="127", height="1278", rgb1="0.8 0.6 0.4", rgb2="0.8 0.6 0.4", markrgb="1 1 1", random="0.01")
-	texplane = etree.Element('texture', name="texplane", type="2d", builtin="checker", rgb1=".2 .3 .4", rgb2=".1 0.15 0.2", width="512", height="512")
+	texplane = etree.Element('texture', name="texplane", type="2d", builtin="checker", rgb1="1 1 1", rgb2="0 0 0", width="512", height="512")
 	matplane = etree.Element('material', name='MatPlane', reflectance='0', texture="texplane", texrepeat="1 1", texuniform="true")
 	geom_material = etree.Element('material', name='geom', texture="texgeom", texuniform="true")
 
@@ -360,11 +360,9 @@ def get_torso_body():
 
 def generate_body():
 	worldbody = etree.Element('worldbody')
-	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', material="MatPlane", condim='1')
+	floor = etree.Element('geom', name='floor', pos='0 0 0', size='50 50 .125', type='plane', rgba='1 1 1 1', material="MatPlane", condim='3')
 
 	torso = get_torso_body()
-
-	
 
 	worldbody.extend([floor, torso])
 
@@ -396,12 +394,16 @@ def generate_xml_model(output_file, config=None):
 	root = etree.Element('mujoco', model='quadruped')
 
 	compiler_settings = {'inertiafromgeom': 'true', 'angle': 'degree', 'coordinate': "global"}
-
+	visual = etree.Element('visual')
+	headlight = etree.Element('headlight', ambient='0.45 0.45 0.45')
+	visual.append(headlight)
+ 
 	compiler = etree.Element('compiler', **compiler_settings)
 	option = etree.Element('option', gravity='0 0 -98.1')
 
 	root.append(compiler)
 	root.append(option)
+	root.append(visual)
 	root.append(generate_xml_defaults())
 	root.append(generate_xml_assets())
 	root.append(generate_body())
