@@ -176,6 +176,8 @@ class Leg(object):
 		self.leg_id = leg_id
 		self.config = config
 		self.tibia_x_offset = 1.05*(-1)**(self.leg_id-1)
+		self.with_foot = True if 'foot_friction' in config else False
+
 		self.calc_morphology()
 
 	def calc_tibia_spring_attachment(self):
@@ -203,14 +205,21 @@ class Leg(object):
 			math.cos(self.femur_angle) * self.config['femur_length'])
 		self.femur_attachment, self.tibia_attachment = self.calc_tibia_spring_attachment()
 
-		tibia_foot_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']-1.5))
-		tibia_foot_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']-1.5))
-		
-		tibia_foot_2_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
-		tibia_foot_2_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
- 
-		self.tibia_foot = Point(self.tibia_x_offset, tibia_foot_y, tibia_foot_z)
-		self.tibia_foot2 = Point(self.tibia_x_offset, tibia_foot_2_y, tibia_foot_2_z)
+		if not self.with_foot:
+			tibia_foot_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
+			tibia_foot_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
+			
+			self.tibia_foot = Point(self.tibia_x_offset, tibia_foot_y, tibia_foot_z)
+			self.tibia_foot2 = Point(self.tibia_x_offset, tibia_foot_y-0.2, tibia_foot_z-0.4)
+		else:
+			tibia_foot_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']-1.5))
+			tibia_foot_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']-1.5))
+			
+			tibia_foot_2_y = self.femur_tibia_joint.y + ((self.femur_tibia_joint.y - self.tibia_attachment.y) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
+			tibia_foot_2_z = self.femur_tibia_joint.z + ((self.femur_tibia_joint.z - self.tibia_attachment.z) / self.config['tibia_spring_to_joint_dst'] * (self.config['tibia_length']-self.config['tibia_spring_to_joint_dst']))
+	 
+			self.tibia_foot = Point(self.tibia_x_offset, tibia_foot_y, tibia_foot_z)
+			self.tibia_foot2 = Point(self.tibia_x_offset, tibia_foot_2_y, tibia_foot_2_z)
 
 
 	def offset_by(self, x, y, z):
@@ -229,13 +238,22 @@ class Leg(object):
 		femur_joint = etree.Element('joint', pos=self.femur_joint.get_rescaled_text(), name='shoulder_' + str(self.leg_id), damping=str(self.config['hip_damping']))
 		femur_site = etree.Element('site', name='s'+str(self.leg_id)+'_1', pos=self.femur_attachment.get_rescaled_text())
 
+		if not self.with_foot:
+			condim = 3
+		else:
+			condim = 1
+
 		tibia = etree.Element('body')
-		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text(), condim='1')
+		tibia_geom = etree.Element('geom', type='capsule', fromto=self.tibia_attachment.get_rescaled_text() + ' ' + self.tibia_foot.get_rescaled_text(), condim=str(condim))
 		tibia_joint = etree.Element('joint', limited='true', range='-60 0', pos=self.femur_tibia_joint.get_rescaled_text(), damping=str(self.config['knee_damping']))
 		tibia_site = etree.Element('site', name='s'+str(self.leg_id)+'_2', pos=self.tibia_attachment.get_rescaled_text())
 
 		foot = etree.Element('body', pos=self.tibia_foot.get_rescaled_text())
-		foot_geom = etree.Element('geom', friction="{0:.5f} 0.005 0.0001".format(self.config['foot_friction']), type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
+		if not self.with_foot:
+			foot_geom = etree.Element('geom', condim='3', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
+		else:
+			foot_geom = etree.Element('geom', condim='3', friction="{0:.5f} 0.005 0.0001".format(self.config['foot_friction']), type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
+		
 		foot_site = etree.Element('site', name='sensor_'+str(self.leg_id), pos=self.tibia_foot.get_rescaled_text())
 
 		foot.extend([foot_geom, foot_site])
