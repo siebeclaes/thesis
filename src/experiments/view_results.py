@@ -121,10 +121,14 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(self.add_cpg_params())
 
-        distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
+        DURATION = 10
+        speeds = ["{0:.2f}".format(d/10) for d in self.simulation['distance']]
+        powers = ["{0:.2f}".format(e/10) for e in self.simulation['energy']]
+
+        distance = QtWidgets.QLabel('Distance: ' + str(speeds))
         layout.addWidget(distance)
         
-        energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
+        energy = QtWidgets.QLabel('Energy: ' + str(powers))
         layout.addWidget(energy)
 
         if 'perturbation' in self.simulation:
@@ -274,15 +278,15 @@ class ExperimentView(QtWidgets.QHBoxLayout):
 
         self.show_best_button = QtWidgets.QPushButton('Show best')
         self.show_best_button.clicked.connect(self.show_best)
-        experiment_details.addWidget(self.show_best_button)
+        # experiment_details.addWidget(self.show_best_button)
 
         self.analyze_variation_button = QtWidgets.QPushButton('Analyze variation performance')
         self.analyze_variation_button.clicked.connect(self.analyze_variation_performance)
-        experiment_details.addWidget(self.analyze_variation_button)
+        # experiment_details.addWidget(self.analyze_variation_button)
 
         self.analyze_perturb_button = QtWidgets.QPushButton('Analyze perturbation performance')
         self.analyze_perturb_button.clicked.connect(self.perturbation_test)
-        experiment_details.addWidget(self.analyze_perturb_button)
+        # experiment_details.addWidget(self.analyze_perturb_button)
 
         self.experiment_details_widget = QtWidgets.QWidget()
         self.experiment_details_widget.setLayout(experiment_details)
