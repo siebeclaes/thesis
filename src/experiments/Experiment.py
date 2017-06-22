@@ -2,6 +2,7 @@ import os
 import feedback_cpg as sim
 from model_variations import generate_temp_model_file, generate_model_variations
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from utils import printProgressBar
 import datetime
 import generate_model
@@ -24,10 +25,11 @@ def eval_wrapper(variables):
 		r = sim.evaluate(model_file, closed_loop, params.tolist(), perturbations, render, logging)
 		results.append(r)
 	# print(results)
+	print("I'm done")
 	return results
 
 class Experiment:
-	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E0=20, perturbation_params=None, variation_params=None, num_variations=0, experiment_tag=None, experiment_tag_index=0):
+	def __init__(self, default_morphology, closed_loop, initial_values, lower_bounds, upper_bounds, variances, max_iters, E_ref=20, perturbation_params=None, variation_params=None, num_variations=0, collection_name='experiments_2', save_in_database=False, experiment_tag=None, experiment_tag_index=0, remarks='', popsize=30):
 		self.default_morphology = default_morphology
 		self.closed_loop = closed_loop
 		self.initial_values = initial_values
@@ -35,13 +37,17 @@ class Experiment:
 		self.upper_bounds = upper_bounds
 		self.variances = variances
 		self.max_iters = max_iters
-		self.E0 = E0
+		self.E_ref = E_ref
 		self.perturbation_params = perturbation_params
 		self.variation_params = variation_params
 		self.num_variations = num_variations
 		self.variation_delta_dicts = []
 		self.experiment_tag = experiment_tag
 		self.experiment_tag_index = experiment_tag_index
+		self.remarks = remarks
+		self.collection_name = collection_name
+		self.save_in_database = save_in_database
+		self.popsize = popsize
 
 		self.type = "closed" if self.closed_loop else "open"
 
@@ -81,15 +87,70 @@ class Experiment:
 			array[i] = var*(self.upper_bounds[i]-self.lower_bounds[i]) + self.lower_bounds[i]
 			i += 1
 
-		array[0] = array[0] * array[0]
-		array[1] = array[1] * array[1]
-		array[2] = array[2] * array[2]
-		array[3] = array[3] * array[3]
+		params = np.array(12*[0.0])
+		if len(array) == 8:
+			# Mapping B
+			# Bound gait, so only 1 phase offset parameter and amplitudes are the same for both front and both hind legs
+			# The amplitudes are derived from the bounds on the swing
+			params[0] = (array[0] - array[2])/2
+			params[1] = (array[0] - array[2])/2
+			params[2] = (array[1] - array[3])/2
+			params[3] = (array[1] - array[3])/2
 
-		array[6] = array[6] * 2 * np.pi
-		array[7] = array[7] * 2 * np.pi
+			params[4] = array[0] - params[0]	
+			params[5] = array[1] - params[2]	
 
-		return array
+			# Amplitudes for CPG should be squared
+			params[0] = params[0] * params[0] 
+			params[1] = params[1] * params[1]
+			params[2] = params[2] * params[2]
+			params[3] = params[3] * params[3]
+
+			# frequency times 2 pi
+			params[6] = array[4] * 2 * np.pi
+
+			params[7] = array[5]
+			params[8] = array[6]
+
+			# Ony 1 phase offset parameter gets optimized
+			# this parameter is the offset between the front and hind legs
+			# Convert this offset to the 3 offsets needed to generate the CPG signals
+			front_hind_offset = array[7]
+			params[9] = 0 # Offset FR to FL is 0 in bound gait
+			params[10] = front_hind_offset
+			params[11] = front_hind_offset
+
+		elif len(array) == 12:
+			# Do not impose bound gait: Mapping A
+			params[0] = array[0] - array[4]
+			params[1] = array[1] - array[4]
+			params[2] = array[2] - array[5]
+			params[3] = array[3] - array[5]
+
+			# Amplitudes for CPG should be squared
+			params[0] = params[0] * params[0] 
+			params[1] = params[1] * params[1]
+			params[2] = params[2] * params[2]
+			params[3] = params[3] * params[3]
+
+			# Copy offsets
+			params[4] = array[4]
+			params[5] = array[5]
+
+			# frequency times 2 pi
+			params[6] = array[6] * 2 * np.pi
+
+			# Copy duty factors
+			params[7] = array[7]
+			params[8] = array[8]
+
+			# Copy three phase offsets
+			params[9] = array[9]
+			params[10] = array[10]
+			params[11] = array[11]
+
+
+		return params
 
 	def sample_variations(self, num):
 		model_files = []
@@ -105,7 +166,7 @@ class Experiment:
 
 	def run_optimization(self, logging=False):
 		es = cma.CMAEvolutionStrategy(self.normalize_initial_values(), self.variances,
-			{'popsize': 25, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
+			{'popsize': self.popsize, 'boundary_handling': 'BoundTransform ','bounds': [0,1], 'maxiter' : self.max_iters,'verbose' :-1})
 		# print('Population size: ' + str(es.popsize))
 		self.seed = es.opts['seed']
 
@@ -170,8 +231,7 @@ class Experiment:
 					action_history.append(ah)
 					sensor_history.append(sh)
 					self.total_simulated_time += st
-					# reward = 0 if distance < 0 or not succes else 1.447812*9.81*distance/(energy_consumed+20)
-					reward = 0 if d < 0 or not succes else (10-0.01*(ec-self.E0)**2)*(d)
+					reward = 0 if d < 0 or not succes else (d * np.tanh(self.E_ref/ec))
 					solution_rewards.append(reward)
 
 				reward = sum(solution_rewards) / len(solution_rewards)
@@ -218,15 +278,44 @@ class Experiment:
 		res = es.result()
 
 		if iteration < 2: #restart
+			mp_pool.terminate()
 			self.init_document()
 			return self.run_optimization(logging)
 		else:
+			document = self.get_document()
+			if self.save_in_database:
+				self.save_in_db(document)
+				self.save_es_object_to_file(es)
+			else:
+				self.save_to_file(document)
+				self.save_es_object_to_file(es)
+
+	def save_in_db(self, document):
+		try:
 			# Save results in DB
 			client = MongoClient('localhost', 27017)
 			db = client['thesis']
-			experiments_collection = db['experiments']
-			insert_result = experiments_collection.insert_one(self.get_document())
+			experiments_collection = db[self.collection_name]
+			insert_result = experiments_collection.insert_one(document)
 			return insert_result.inserted_id
+		except ServerSelectionTimeoutError:
+			self.save_to_file(document)
+
+	def save_to_file(self, document):
+		import pickle
+		import time
+		timestr = time.strftime("%Y%m%d-%H%M%S")
+
+		with open('experiment_logs/' + self.collection_name + '-' + timestr + '.pickle', 'wb') as f:
+			pickle.dump(document, f)
+
+	def save_es_object_to_file(self, es):
+		import pickle
+		import time
+		timestr = time.strftime("%Y%m%d-%H%M%S")
+
+		with open('experiment_logs/' + self.collection_name + '-es' + '-' + timestr + '.pickle', 'wb') as f:
+			pickle.dump(es, f)
 
 	def get_document(self):
 		doc = {}
@@ -234,10 +323,10 @@ class Experiment:
 		doc['timestamp'] = datetime.datetime.utcnow()
 		doc['generate_model_version'] = generate_model.get_model_generator_version()
 		doc['cpg_version'] = sim.get_cpg_version()
-		doc['E0'] = self.E0
+		doc['E_ref'] = self.E_ref
 		doc['experiment_tag'] = self.experiment_tag
 		doc['experiment_tag_index'] = self.experiment_tag_index
-		doc['remarks'] = 'Reward function: 0 if distance < 0 or not succes else (10-0.01*(energy-15)**2)*(distance) perturbations'
+		doc['remarks'] = self.remarks,
 		doc['default_morphology'] = self.default_morphology
 		doc['optimization'] = 	{'type': 'CMA',
 									 'params': {
@@ -276,10 +365,26 @@ if __name__ == '__main__':
 	# MODEL PARAMETERS
 	model_config = {
 		'body': {
-			'width': 15,
+		'front': {
+			'width': 14,
 			'height': 3,
-			'length': 25
+			'length': 8,
+			'mass': 0.179,
 		},
+		'middle': {
+			'width': 5,
+			'height': 0.25,
+			'length': 8,
+			'mass': 0.030,
+		},
+		'hind': {
+			'width': 9,
+			'height': 2.5,
+			'length': 6,
+			'mass': 0.179,
+		},		
+	},
+	'battery_weight': 0.117,
 		'legs': {
 			'FL': {
 				'motor': {
@@ -299,7 +404,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'FR': {
@@ -320,7 +425,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'BL': {
@@ -341,7 +446,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 			'BR': {
@@ -362,7 +467,7 @@ if __name__ == '__main__':
 				'tibia_spring_to_joint_dst': 3.5,
 				'hip_damping': 0.2,
 				'knee_damping': 0.2,
-				'spring_stiffness': 400,
+				'spring_stiffness': 211,
 				'actuator_kp': 254,
 			},
 		},
@@ -402,11 +507,13 @@ if __name__ == '__main__':
 
 	perturb_params = {'expected_occurences': 3, 'perturb_means': [100]*6, 'perturb_variances': [50]*6}
 
-	lb = [15, 15, 15, 15, -30, -30, 0.5, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0, 0]
-	ub = [45, 45, 45, 45, 30, 30, 3, 3, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 2*np.pi]
+	lb = [30, 30, 0, 0, -30, -40, 0.5, 0.1, 0.1, 0, 0, 0]
+	ub = [60, 60, 20, 20, 30, 0, 5, 0.9, 0.9, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	initial = [25, 25, 25, 25, 0, 0, 0.6, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
+	initial = [35, 35, 10, 10, 0, -20, 0.6, 0.4, 0.4, 0, 0, 0]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, 150, 30, variation_params=variation_params_spring, num_variations=1, perturbation_params=None)
+	remark = 'tanh reward function E_ref = 50 max swing hind legs +20 degrees'
+
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, 300, E0=50, variation_params=None, num_variations=1, perturbation_params=None, remarks=remark)
 	e.run()
 

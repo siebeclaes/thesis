@@ -14,6 +14,7 @@ from numpy import arange, sin, pi, cos
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pymongo import MongoClient
+import pymongo
 
 from operator import itemgetter
 from model_variations import generate_temp_model_file, dict_elementwise_operator, generate_model_variations
@@ -35,6 +36,24 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+class MyTable(QtWidgets.QTableWidget):
+    def __init__(self, data, *args):
+        QtWidgets.QTableWidget.__init__(self, *args)
+        self.data = data
+        self.setmydata()
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+
+    def setmydata(self):
+
+        headers = ['FL', 'FR', 'BL', 'BR']
+        for m in range(4): # iterate rows
+            for n in range(4): #iterate cols
+                newitem = QtWidgets.QTableWidgetItem(str(self.data[m][n]))
+                self.setItem(m, n, newitem)
+        self.setHorizontalHeaderLabels(headers)
+        self.setVerticalHeaderLabels(headers)
 
 class MyMplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
@@ -102,11 +121,15 @@ class SimulationView(QtWidgets.QVBoxLayout):
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(self.add_cpg_params())
 
-        # distance = QtWidgets.QLabel('Distance: ' + str(self.simulation['distance']))
-        # layout.addWidget(distance)
+        DURATION = 10
+        speeds = ["{0:.2f}".format(d/10) for d in self.simulation['distance']]
+        powers = ["{0:.2f}".format(e/10) for e in self.simulation['energy']]
+
+        distance = QtWidgets.QLabel('Distance: ' + str(speeds))
+        layout.addWidget(distance)
         
-        # energy = QtWidgets.QLabel('Energy: ' + str(self.simulation['energy']))
-        # layout.addWidget(energy)
+        energy = QtWidgets.QLabel('Energy: ' + str(powers))
+        layout.addWidget(energy)
 
         if 'perturbation' in self.simulation:
             num_perturbations = QtWidgets.QLabel('num_perturbations: ' + str(len(self.simulation['perturbation'])))
@@ -116,13 +139,27 @@ class SimulationView(QtWidgets.QVBoxLayout):
 
     def add_cpg_params(self):
         params = self.simulation['cpg_params']
-        layout = QtWidgets.QHBoxLayout()
-        layout.addLayout(self.leg_cpg_param_layout('Front-left', params[0], params[6], params[4], params[8]))
-        layout.addLayout(self.leg_cpg_param_layout('Front-right', params[1], params[6], params[4], params[8]))
-        layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[7], params[5], params[9]))
-        layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[7], params[5], params[9]))
 
-        return layout
+        vert_layout = QtWidgets.QVBoxLayout()
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.addLayout(self.leg_cpg_param_layout('Front-left', params[0], params[6], params[4], params[7]))
+        layout.addLayout(self.leg_cpg_param_layout('Front-right', params[1], params[6], params[4], params[7]))
+        layout.addLayout(self.leg_cpg_param_layout('Back-left', params[2], params[6], params[5], params[8]))
+        layout.addLayout(self.leg_cpg_param_layout('Back-right', params[3], params[6], params[5], params[8]))
+
+        vert_layout.addLayout(layout)
+
+        a, b, c = params[9], params[10], params[11]
+        d = a-b
+        e = a-c
+        f = b-c
+
+        data = [[0,a,b,c], [-1*a,0,d, e], [-1*b,-1*d,0, f], [-1*c,-1*e,-1*f, 0]]
+        table = MyTable(data, 4, 4)
+        vert_layout.addWidget(table)
+
+        return vert_layout
 
     def dump_params(self):
         import pickle
@@ -164,8 +201,10 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.sensor_history_plot = MyMplCanvas()
         self.addWidget(self.sensor_history_plot)
 
-        action_history = self.simulation['action_history']
-        sensor_history = self.simulation['sensor_history']
+        print(len(self.simulation['sensor_history']))
+
+        action_history = [x[:500] for x in self.simulation['action_history']]
+        sensor_history = [x[:500] for x in self.simulation['sensor_history']]
 
         for i in range(len(sensor_history)):
             sensor_history[i] = moving_average(sensor_history[i], 15)
@@ -179,8 +218,8 @@ class SimulationView(QtWidgets.QVBoxLayout):
         self.action_history_plot.draw()
 
         self.sensor_history_plot.axes.cla()
-        # self.sensor_history_plot.axes.plot(sensor_history[0], color='blue', label='FL')
-        # self.sensor_history_plot.axes.plot(sensor_history[1], color='red', label='FR')
+        self.sensor_history_plot.axes.plot(sensor_history[0], color='blue', label='FL')
+        self.sensor_history_plot.axes.plot(sensor_history[1], color='red', label='FR')
         self.sensor_history_plot.axes.plot(sensor_history[2], color='green', label='BL')
         self.sensor_history_plot.axes.plot(sensor_history[3], color='yellow', label='BR')
         self.sensor_history_plot.axes.legend()
@@ -192,7 +231,8 @@ class SimulationView(QtWidgets.QVBoxLayout):
         if not self.experiment['default_morphology']:
             self.model_file = '/Users/Siebe/Dropbox/Thesis/Scratches/model.xml'
         elif self.experiment['variation_params']:
-            model_files, _ = generate_model_variations(self.experiment['default_morphology'], self.experiment['variation_params'], num=1)
+            model_files, variation_dicts = generate_model_variations(self.experiment['default_morphology'], self.experiment['variation_params'], num=1)
+            print(variation_dicts)
             self.model_file = model_files[0]
         elif not self.experiment['delta_dicts']:
             self.model_file = generate_temp_model_file(self.experiment['default_morphology'])
@@ -238,15 +278,15 @@ class ExperimentView(QtWidgets.QHBoxLayout):
 
         self.show_best_button = QtWidgets.QPushButton('Show best')
         self.show_best_button.clicked.connect(self.show_best)
-        experiment_details.addWidget(self.show_best_button)
+        # experiment_details.addWidget(self.show_best_button)
 
         self.analyze_variation_button = QtWidgets.QPushButton('Analyze variation performance')
         self.analyze_variation_button.clicked.connect(self.analyze_variation_performance)
-        experiment_details.addWidget(self.analyze_variation_button)
+        # experiment_details.addWidget(self.analyze_variation_button)
 
         self.analyze_perturb_button = QtWidgets.QPushButton('Analyze perturbation performance')
         self.analyze_perturb_button.clicked.connect(self.perturbation_test)
-        experiment_details.addWidget(self.analyze_perturb_button)
+        # experiment_details.addWidget(self.analyze_perturb_button)
 
         self.experiment_details_widget = QtWidgets.QWidget()
         self.experiment_details_widget.setLayout(experiment_details)
@@ -389,8 +429,10 @@ class ExperimentsListWidget(QtWidgets.QListWidget):
     def load_list(self):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments']
-        for doc in experiments_collection.find({}, {"results.simulations": 0}):
+        experiments_collection = db[collection_name]
+        # print(experiments_collection.index_information())
+        experiments_collection.create_index("timestamp")
+        for doc in experiments_collection.find({}, {"results.simulations": 0}).sort("timestamp", pymongo.ASCENDING):
             self.experiments.append(doc)
 
             item = QtWidgets.QListWidgetItem()
@@ -437,7 +479,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def experiment_selected(self, experiment_id):
         client = MongoClient('localhost', 27017)
         db = client['thesis']
-        experiments_collection = db['experiments']
+        experiments_collection = db[collection_name]
         experiment = experiments_collection.find_one({'_id': experiment_id})
         self.detail_view.update_experiment(experiment)
 
@@ -454,11 +496,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                                     """
                                 )
 
+if len(sys.argv) < 2:
+    print("Please specify the collection you want to view.")
+else:
+    collection_name = sys.argv[1]    
 
-qApp = QtWidgets.QApplication(sys.argv)
+    qApp = QtWidgets.QApplication(sys.argv)
 
-aw = ApplicationWindow()
-aw.setWindowTitle("%s" % progname)
-aw.show()
-sys.exit(qApp.exec_())
-#qApp.exec_()
+    aw = ApplicationWindow()
+    aw.setWindowTitle("%s" % progname)
+    aw.show()
+    sys.exit(qApp.exec_())
+    #qApp.exec_()

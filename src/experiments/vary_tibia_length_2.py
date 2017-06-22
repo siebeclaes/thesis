@@ -142,7 +142,7 @@ def run():
 def get_experiments():
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['experiments']
+	experiments_collection = db['experiments_2']
 
 	return experiments_collection.find({'experiment_tag': EXPERIMENT_TAG})
 
@@ -208,7 +208,7 @@ def view_results():
 	print('Showing results...')
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['experiments']
+	experiments_collection = db['experiments_2']
 
 	indices, mins, avgs, maxs, stds = [], [], [], [], []
 

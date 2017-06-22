@@ -10,8 +10,8 @@ using namespace std;
 class CpgFeedbackControl : public Control
 {
 public:
-	CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<vector<double>> p_coupling, double phase_offset);
-	CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<vector<double>> p_coupling, double phase_offset, vector<double> kappa_r, vector<double> kappa_phi, vector<double> kappa_o, const double* weights);
+	CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<double> phase_offsets);
+	CpgFeedbackControl(vector<double> p_mu, vector<double> p_o, vector<double> p_omega, vector<double> p_d, vector<double> phase_offsets, vector<double> kappa_r, vector<double> kappa_phi, vector<double> kappa_o, const double* weights);
 	~CpgFeedbackControl();
 
 	void getAction(double* actions, double* forces, double time);
@@ -22,12 +22,12 @@ private:
 
 	bool closed_loop;
 	double prev_time = -1;
-	double dt = 0.0001;
+	double dt = 0.001;
 
 	Network n;
 
 	// CPG parameters
-	double gamma = 5;			// Speed of convergence
+	double gamma = 0.1;			// Speed of convergence
 	vector<double> mu; 			// Vector of amplitudes
 	vector<double> omega;		// Vector of target frequencies
 	vector<double> d;			// Vector of duty factor (stance duration / swing duration)

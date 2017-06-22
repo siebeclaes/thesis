@@ -11,6 +11,8 @@
 #endif
 
 #define E0 100
+#define NUM_ROTATION_SAMPLES 10
+#define INITIALIZATION_DURATION 5 // Only start measuring distance and energy after 5 seconds
 
 QuadrupedEnv* env = 0;
 bool activated = false;
@@ -144,7 +146,7 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
     // printf("Model mass: %f\n", mj_getTotalmass(m))
     torso_body_id = mj_name2id(m, mjOBJ_BODY, "torso");
     torso_xpos_id = mj_name2id(m, mjOBJ_GEOM, "torso_geom");
-    // printf("Torso_geom_id: %d\n", torso_xpos_id);
+    // printf("Torso_body_id: %d\n", torso_xpos_id);
 
     actuator_indices[0] = mj_name2id(m, mjOBJ_ACTUATOR, "act_1");
     actuator_indices[1] = mj_name2id(m, mjOBJ_ACTUATOR, "act_2");
@@ -218,15 +220,42 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 	for (int i = 0; i < mSkipFrames; i++)
 		mj_step(m, d);
 
-    // Update consumed energy
-    for (int i = 0; i < 4; i++)
+    // Update consumed energy after initialization phase
+    if (d->time > INITIALIZATION_DURATION)
     {
-        double current_shoulder_qpos = d->qpos[shoulder_qpos_indices[i]];
-        double theta = mju_abs(current_shoulder_qpos - prev_shoulder_qpos[i]);
-        prev_shoulder_qpos[i] = current_shoulder_qpos;
+        for (int i = 0; i < 4; i++)
+        {
+            double current_shoulder_qpos = d->qpos[shoulder_qpos_indices[i]];
+            double theta = mju_abs(current_shoulder_qpos - prev_shoulder_qpos[i]);
+            prev_shoulder_qpos[i] = current_shoulder_qpos;
 
-        // Scale torques by scaling_factor ^ 2
-        energy += mju_abs(d->actuator_force[i] / 100 * theta);
+            // Scale torques by scaling_factor ^ 2
+            energy += mju_abs(d->actuator_force[i] / 100 * theta);
+        } 
+    }    
+
+    // Get position samples to compensate direction after initialization phase
+    if (!pos_sample_1_done && d->time > INITIALIZATION_DURATION)
+    {
+        if (rotation_sample_counter < NUM_ROTATION_SAMPLES)
+        {
+            // Check current rotation. If it is too high, abort
+            double* rotation_frame_2 = &d->xmat[9];
+            double* vr_2 = &rotation_frame_2[3];
+            double rr[3] = {0,1,0};
+            rotation_after_init += angleBetween(vr_2, rr);
+
+            rotation_sample_counter++;
+        }
+
+        if (rotation_sample_counter == NUM_ROTATION_SAMPLES)
+        {
+            rotation_after_init /= NUM_ROTATION_SAMPLES;
+
+            pos_sample_1_x = d->qpos[freeJointAddress];
+            pos_sample_1_y = d->qpos[freeJointAddress + 1];
+            pos_sample_1_done = true;
+        }
     }
 
     // Check for warnings (they indicate numerical instabilities)
@@ -244,34 +273,20 @@ bool QuadrupedEnv::step(double* action, vector<double>* perturb_ft)
 		return false;
 	}
 
-    double gyro_x = d->sensordata[12];
-    double gyro_y = d->sensordata[13];
-    double gyro_z = d->sensordata[14];
-
-    y_rotation += mju_abs(gyro_y);
-
-    // printf("Orientation: %f %f %f\n", gyro_x, gyro_y, gyro_z);
-
     // Check current rotation. If it is too high, abort
-	double* rotation_frame = &d->xmat[9];
+	double* rotation_frame = &d->geom_xmat[torso_xpos_id*9];
 	double* vr = &rotation_frame[6];
 	double r[3] = {0,0,1};
 	double rotation = angleBetween(vr, r) / 3.141592654 * 180;
 
-    // printf("Moment arm %d: %f\n", 0, d->actuator_moment[m->nv*0+6]);
-    // printf("Moment arm %d: %f\n", 1, d->actuator_moment[m->nv*1+8]);
-    // printf("Moment arm %d: %f\n", 2, d->actuator_moment[m->nv*2+10]);
-    // printf("Moment arm %d: %f\n", 3, d->actuator_moment[m->nv*3+12]);
 
 	if (fabs(rotation) > maxRotation)
 	{
 		survived = false;
-		// printf("Tilted too far, time: %f\n", d->time);
 	}
 
-    // printf("torso height: %f\n", d->geom_xpos[torso_xpos_id+2]);
     // Check for torso too low
-    if (d->geom_xpos[torso_xpos_id+2] < -0.7)
+    if (d->geom_xpos[3*torso_xpos_id+2] < -0.7)
     {
         survived = false;
     }
@@ -298,12 +313,16 @@ double QuadrupedEnv::getTime()
 
 double QuadrupedEnv::getDistance()
 {
-    double x = d->qpos[freeJointAddress];
-    double y = d->qpos[freeJointAddress + 1];
+    double current_x = d->qpos[freeJointAddress] - pos_sample_1_x;
 
-    // double dx = initialX - x;
-    double dy = initialY - y;
+    // Change direction of y-axis.
+    // The model generator creates the model with the robot head pointing along the negative y-axis.
+    // Calculations are easier when the robot starts along the positive y-axis
+    double current_y = (d->qpos[freeJointAddress + 1] - pos_sample_1_y) * -1;
 
+    double end_y_rotated = mju_cos(rotation_after_init) * current_y - mju_sin(rotation_after_init) * current_x;
+
+    double dy = end_y_rotated;
     return dy / 10;
 }
 

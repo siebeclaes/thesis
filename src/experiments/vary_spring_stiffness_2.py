@@ -32,7 +32,7 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'FR': {
@@ -53,7 +53,7 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'BL': {
@@ -74,7 +74,7 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 		'BR': {
@@ -95,7 +95,7 @@ model_config = {
 			'tibia_spring_to_joint_dst': 3.5,
 			'hip_damping': 0.2,
 			'knee_damping': 0.2,
-			'spring_stiffness': 400,
+			'spring_stiffness': 211,
 			'actuator_kp': 254,
 		},
 	},
@@ -104,45 +104,48 @@ model_config = {
 EXPERIMENT_TAG = 'vary_spring_stiffness_2'
 NUM_OPTIMIZATION_STEPS = 250
 E_0 = 30
-NUM_VARIATIONS = 15
+NUM_VARIATIONS = 10
 
-def perform_experiment(spring_stiffness_variance):
+def perform_experiment(spring_stiffness_stdev, E_ref):
 	from Experiment import Experiment
 	variation_params_spring = {'legs': {
 			'FL': {
-				'spring_stiffness': {'normal': [0, spring_stiffness_variance]},
+				'spring_stiffness': {'normal': [0, spring_stiffness_stdev**2]},
 			},
 			'FR': {
-				'spring_stiffness': {'normal': [0, spring_stiffness_variance]},
+				'spring_stiffness': {'normal': [0, spring_stiffness_stdev**2]},
 			},
 			'BL': {
-				'spring_stiffness': {'normal': [0, spring_stiffness_variance]},
+				'spring_stiffness': {'normal': [0, spring_stiffness_stdev**2]},
 			},
 			'BR': {
-				'spring_stiffness': {'normal': [0, spring_stiffness_variance]},
+				'spring_stiffness': {'normal': [0, spring_stiffness_stdev**2]},
 			},
 		},
 	}
 
-	lb = [15, 15, 15, 15, -30, -30, 0.5, 0.5, 0.2, 0.2, 0, 0, 0, 0, 0, 0, 0]
-	ub = [45, 45, 45, 45, 30, 30, 3, 3, 0.7, 0.7, 1, 1, 1, 1, 1, 1, 2*np.pi]
+	remark = 'vary spring stiffness E_ref = ' + str(E_ref) + ' stdev spring stiffness = ' + str(spring_stiffness_stdev)
 
-	initial = [25, 25, 25, 25, 0, 0, 0.6, 0.6, 0.2, 0.2, 0, 1, 1, 1, 1, 0, np.pi]
+	lb = [30, 30, 30, 30, -30, -30, 0.5, 0.2, 0.2, 0, 0, 0]
+	ub = [60, 60, 60, 60, 30, 30, 3, 0.7, 0.7, 2*np.pi, 2*np.pi, 2*np.pi]
 
-	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E_0, variation_params=variation_params_spring, num_variations=NUM_VARIATIONS, perturbation_params=None, experiment_tag=EXPERIMENT_TAG, experiment_tag_index=spring_stiffness_variance)
+	initial = [35, 35, 35, 35, 0, 0, 0.6, 0.4, 0.4, 0, 0, 0]
+
+	e = Experiment(model_config, False, initial, lb, ub, 0.5, NUM_OPTIMIZATION_STEPS, E0=E_ref, variation_params=variation_params_spring, num_variations=NUM_VARIATIONS, perturbation_params=None, remarks=remark)
 	e.run()
 
 def run():
-	# variances = [40, 60, 80, 100, 120, 140, 160]
-	variances = [i**2 for i in range(1, 120, 5)]
+	stdevs = [20]
+	E_refs = [20, 30, 40, 50, 60]
 
-	for variance in variances:
-		perform_experiment(variance)
+	for stdev in stdevs:
+		for E_ref in E_refs:
+			perform_experiment(stdev, E_ref)
 
 def get_experiments():
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['experiments']
+	experiments_collection = db['experiments_2']
 
 	return experiments_collection.find({'experiment_tag': EXPERIMENT_TAG})
 
@@ -243,7 +246,7 @@ def view_results():
 	print('Showing results...')
 	client = MongoClient('localhost', 27017)
 	db = client['thesis']
-	experiments_collection = db['experiments']
+	experiments_collection = db['experiments_2']
 
 	indices, mins, avgs, maxs, stds = [], [], [], [], []
 

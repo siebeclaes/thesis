@@ -75,6 +75,13 @@ private:
 	double energy = 0;
 	double y_rotation = 0;
 
+	// Position samples to get direction after initialization
+	double pos_sample_1_x = 0;
+	double pos_sample_1_y = 0;
+	int rotation_sample_counter = 0;
+	double rotation_after_init = 0;
+	bool pos_sample_1_done = false;
+
 	// Energy computation variables
 	int actuator_indices[4];
 	int shoulder_indices[4];

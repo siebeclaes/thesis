@@ -28,19 +28,29 @@ def extract_sample_variables(d, top_path=''):
 	path = []
 	mean = []
 	var = []
+	bindings = {}
 
 	for key, value in d.items():
+		current_path = top_path + '.' + key if top_path != '' else key
 		if key == 'normal':
 			path.append(top_path)
 			mean.append(value[0])
 			var.append(value[1])
 		elif isinstance(value, dict):
-			current_path = top_path + '.' + key if top_path != '' else key
-			p, m, v = extract_sample_variables(value, current_path)
+			p, m, v, b = extract_sample_variables(value, current_path)
 			path.extend(p)
 			mean.extend(m)
 			var.extend(v)
-	return (path, mean, var)
+			for target_path, bound_paths in b.items():
+				z = bindings.get(target_path, [])
+				z.extend(bound_paths)
+				bindings[target_path] = z
+		elif isinstance(value, str):
+			bound_paths = bindings.get(value, [])
+			bound_paths.append(current_path)
+			bindings[value] = bound_paths
+
+	return (path, mean, var, bindings)
 
 
 def insert_in_dict(d, path, value):
@@ -60,7 +70,7 @@ def insert_in_dict(d, path, value):
 
 
 def sample_multivariate_from_dict(d, num_samples=1):
-	sample_paths, sample_mean, sample_var = extract_sample_variables(d)
+	sample_paths, sample_mean, sample_var, bindings = extract_sample_variables(d)
 	cov = np.diag(sample_var)
 	samples = np.random.multivariate_normal(sample_mean, cov, num_samples)
 
@@ -71,6 +81,10 @@ def sample_multivariate_from_dict(d, num_samples=1):
 		delta_dicts.append(delta_dict)
 		for path, delta in zip(sample_paths, sample):
 			insert_in_dict(delta_dict, path, delta)
+			if path in bindings:
+				# Apply delta also to the bound paths
+				for bound_path in bindings[path]:
+					insert_in_dict(delta_dict, bound_path, delta)
 
 	return delta_dicts
 
