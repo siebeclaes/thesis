@@ -158,6 +158,15 @@ void QuadrupedEnv::initMuJoCo(const char* filename)
     shoulder_indices[2] = mj_name2id(m, mjOBJ_JOINT, "shoulder_3");
     shoulder_indices[3] = mj_name2id(m, mjOBJ_JOINT, "shoulder_4");
 
+    foot_geom_indices[0] = mj_name2id(m, mjOBJ_GEOM, "foot_1");
+    foot_geom_indices[1] = mj_name2id(m, mjOBJ_GEOM, "foot_2");
+    foot_geom_indices[2] = mj_name2id(m, mjOBJ_GEOM, "foot_3");
+    foot_geom_indices[3] = mj_name2id(m, mjOBJ_GEOM, "foot_4");
+
+    for (int i = 0; i<4; i++) {
+        printf("Foot %d friction: %f %f %f\n", i, m->geom_friction[3*foot_geom_indices[i]+0], m->geom_friction[3*foot_geom_indices[i] + 1], m->geom_friction[3*foot_geom_indices[i] + 2]);
+    }
+
     for (int i = 0; i < 4; i++)
         shoulder_qpos_indices[i] = m->jnt_qposadr[shoulder_indices[i]];
 

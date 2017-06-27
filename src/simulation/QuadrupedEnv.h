@@ -91,6 +91,9 @@ private:
 	int torso_body_id;
 	int torso_xpos_id;
 
+	// Varying foot friction
+	int foot_geom_indices[4];
+
 	void initMuJoCo(const char* filename);
 	void closeMuJoCo();
 	void unitVector(double* v);

@@ -252,7 +252,7 @@ class Leg(object):
 		if not self.with_foot:
 			foot_geom = etree.Element('geom', condim='3', friction='1 0.005 0.0001', type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text())
 		else:
-			foot_geom = etree.Element('geom', condim='3', friction="{0:.5f} 0.005 0.0001".format(self.config['foot_friction']), type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
+			foot_geom = etree.Element('geom', condim='3', name='foot_' + str(self.leg_id), friction="{0:.5f} 0.005 0.0001".format(self.config['foot_friction']), type='capsule', fromto=self.tibia_foot.get_rescaled_text() + ' ' + self.tibia_foot2.get_rescaled_text(), size='0.075')
 		
 		foot_site = etree.Element('site', name='sensor_'+str(self.leg_id), pos=self.tibia_foot.get_rescaled_text())
 
